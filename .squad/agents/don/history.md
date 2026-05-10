@@ -133,3 +133,12 @@ _(append below as work proceeds)_
 - Added the rename invariant: submit/Enter captures the current Space identity fresh at commit time through the same `SpaceFingerprinter.currentIdentity()` path used by display refresh, then writes the name to that exact identity.
 - Read/write drift audit found real drift in the rename path: `OptionClickRenameController` captured the identity at rename start and reused it on commit. The stale re-bind bug was the likely visible cause of “second always shows third,” but the stale commit capture was also present and is now fixed.
 - Verification: baseline `swift build && swift test` passed with 21 tests, 0 failures; after fixes, `swift build && swift test` passed with 24 tests, 0 failures.
+
+### Git Repository Initialization (2026-05-10T16:50:55.842-04:00)
+- **Status:** Repository initialized at `/Users/cristianormazabal/Projects/virtual-overlay-for-mac` with default branch `main`.
+- **Commit SHA:** `9e92653` (Initial commit — Virtual Overlay M2).
+- **Tracked files:** 213 files committed, 22128 insertions. Includes all source code, tests, .gitattributes, .copilot/, GitHub workflows, and **full .squad/ team memory** (decisions, agent histories, orchestration logs, research artifacts, probes). Prototypes folder preserved for historical reference.
+- **Ignored paths:** `.build/`, `.swiftpm/`, `DerivedData/`, `*.xcuserdata/`, `*.xcworkspace/xcuserdata/`, `.DS_Store`, `.AppleDouble`, `Icon?`, `.vscode/`, `.idea/`, `.swp`, `*~`, `.squad-workstream` (local machine activation).
+- **Gitattributes preserved:** `.squad/decisions.md` and `.squad/agents/*/history.md` configured for `merge=union` to avoid conflicts on append-only team state.
+- **Working tree clean:** `git status` shows no staged, unstaged, or untracked files. Repository ready for remote addition.
+- **Note:** No remote configured yet; Cristian will add one if needed.
