@@ -387,3 +387,152 @@ Defaults preserve the pre-preferences hardcoding:
 The 6 curated color swatches were chosen to match Susan's app icon design language: warm off-white (`#F4F1EA`) and near-black (`#111416`) primary palette, with complementary accents. This ensures preferences UI feels visually cohesive with the app's identity.
 
 ---
+
+## 7. Decision: WatermarkPreferences v2 — Color and Opacity Split
+**Author:** Don  
+**Date:** 2026-05-10T19:18:41.680-04:00  
+**Status:** Proposed  
+**Supersedes:** WatermarkPreferences v1
+
+### The decision
+
+`WatermarkPreferences` v2 separates color and opacity:
+
+```swift
+struct WatermarkPreferences: Codable {
+    var color: CodableColor
+    var opacity: Double
+    var fontSize: CGFloat
+    var position: WatermarkPosition
+}
+```
+
+The `color` field is now RGB only; alpha is normalized to `1.0` and ignored for rendering. `opacity` is the separate intensity control in `0.0...1.0`, exposed in Preferences UI as a 1%…100% slider.
+
+### Migration rule
+
+When loading v1 JSON with no `opacity` field, decode the stored `color.alpha` as the new `opacity` value, then normalize `color.alpha` to `1.0`. Saving after that writes the v2 schema, preserving Cristian's existing watermark intensity as a one-shot migration.
+
+---
+
+## 8. Decision: WatermarkPreferences v3 — Curated Font Family
+**Author:** Don  
+**Date:** 2026-05-10T19:32:38.748-04:00  
+**Status:** Proposed  
+**Supersedes:** WatermarkPreferences v2
+
+### The decision
+
+`WatermarkPreferences` v3 adds a curated font family selector:
+
+```swift
+struct WatermarkPreferences: Codable {
+    var color: CodableColor
+    var opacity: Double
+    var fontSize: CGFloat
+    var fontFamily: WatermarkFontFamily
+    var position: WatermarkPosition
+}
+
+enum WatermarkFontFamily: String, Codable, CaseIterable {
+    case sfPro
+    case sfMono
+    case newYork
+    case helveticaNeue
+    case menlo
+}
+```
+
+### Font set rationale
+
+The picker is intentionally bounded: SF Pro for system default, SF Mono for technical signage, New York for system serif, Helvetica Neue for classic macOS sans, and Menlo for developer fixed-width. No full system picker, user-installed fonts, or web fonts.
+
+### Migration rule
+
+When loading v1/v2 JSON with no `fontFamily` field, decode as `.sfPro`. Saving after that writes the v3 schema.
+
+---
+
+## 9. Decision: Live Preview Uses Complete Preference Snapshots
+**Author:** Don  
+**Date:** 2026-05-10T19:32:00.082-04:00  
+**Status:** Proposed
+
+### The decision
+
+All Preferences live-preview controls must mutate a single local `WatermarkPreferences` draft and apply that whole snapshot to `WatermarkAppearance` / `OverlayController`. The 500ms debounce governs disk writes only; it must never be part of the overlay preview data path.
+
+### Reasoning
+
+Partial live updates can mix fresh slider values with stale position/color/font fields or trigger unwanted renderer-side state resets. Publishing and applying the full snapshot keeps all fields consistent for every preview frame.
+
+### Follow-on rule
+
+Renderer appearance changes should reset hover-flee home state **only** when `position` changes. Cosmetic changes (opacity, font size, color) must preserve the current visible watermark corner.
+
+---
+
+## 10. Decision: Live State Owns Slider Labels
+**Author:** Don  
+**Date:** 2026-05-10T19:25:28.374-04:00  
+**Status:** Proposed
+
+### The decision
+
+SwiftUI slider rows that display their current numeric value should bind both the slider and the value label to the same live `@State` value. Persistence, save debouncing, and downstream observable objects may receive changes from that state but must not be the source of truth for the label during drag.
+
+### Reasoning
+
+A debounced or indirectly observed preference path can let the rendered overlay update while the label remains stale. Keeping the label on the slider's live state makes the UI truthful during continuous interaction and avoids jitter with `.monospacedDigit()`.
+
+---
+
+## 11. Decision: Retire Heuristic CGS Re-bind
+**Author:** Don  
+**Date:** 2026-05-10T16:28:42.833-04:00  
+**Status:** Proposed  
+**Supersedes:** Space Identity v1.2 re-bind-on-first-visit behavior
+
+### The decision
+
+Retire the automatic re-bind logic that matched heuristic-only stored entries (`cgsSpaceID = nil`) to a fresh session CGS Space ID on first visit.
+
+On launch, stale CGS IDs are cleared in memory (they don't survive sessions). Any entry without a fresh CGS ID is dormant/orphaned data and must not be matched to or refreshed into a current CGS-backed identity.
+
+### Rationale
+
+The re-bind used the same heuristic matching that CGS identity was introduced to replace. In Cristian's failure case, an old entry named `third` could bind itself to the freshly detected CGS ID for Space 2, causing Space 2 to display `third` forever in that session.
+
+Showing `UNNAMED` until the user renames each Space once under the CGS-backed identity is more honest than guessing.
+
+### Rename invariant
+
+Rename submit must capture the Space identity fresh at commit time, using the same `SpaceFingerprinter.currentIdentity()` path used by display refresh. The write must not use an identity cached by `WatermarkView`, `OverlayController`, or a closure captured at interaction time.
+
+---
+
+## 12. Decision: SwiftPM App Bundle Script
+**Author:** Don  
+**Date:** 2026-05-10T17:02:16.335-04:00  
+**Status:** Implemented
+
+### The decision
+
+Keep the project SwiftPM-only and add a root `bundle.sh` script that wraps the release SwiftPM product into `dist/Virtual Overlay.app`.
+
+### Specification
+
+- **Bundle identifier:** `com.ormasoftchile.virtualoverlay`
+- **Product source:** `swift build -c release --product VirtualOverlay`, copied from `.build/release/VirtualOverlay`
+- **Bundle executable name:** `Virtual Overlay`, matching `CFBundleExecutable`
+- **Version scheme:** script-local `CFBundleShortVersionString = 0.1.0` and `CFBundleVersion = 1` for v1
+- **Minimum macOS:** `13.0`, matching `Package.swift`'s `.macOS(.v13)`
+- **Launch Services:** `LSUIElement = true` in `Info.plist`; runtime uses accessory activation policy
+- **Signing:** ad-hoc local signing only via `codesign --force --deep --sign -`; failures warn but do not fail the bundle build
+
+### Non-goals
+
+No Xcode project, notarization, DMG, Sparkle auto-update, or certificate setup in this step.
+
+---
+

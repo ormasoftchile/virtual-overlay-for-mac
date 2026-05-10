@@ -166,3 +166,31 @@ _(append below as work proceeds)_
 - **Bundle.sh update:** Copy step added to wire `Resources/AppIcon.icns` → `dist/Virtual Overlay.app/Contents/Resources/AppIcon.icns`; `CFBundleIconFile = AppIcon` set in generated `Info.plist`.
 - **Visual consistency:** Icon echoes the product's core ambient aesthetic—restrained, infrastructural, like Bloomberg terminal labels or architectural signage. No gradients, neon, skeuomorphism.
 - **Decision 5:** Approved in `.squad/decisions.md`. Establishes v1 visual identity foundation; future assets (status bar glyph, etc.) follow same aesthetic.
+
+### Watermark Preferences Window (2026-05-10T19:06:07.182-04:00)
+- Added `WatermarkPreferences` v1 in `Persistence`: `{ color: CodableColor, fontSize: CGFloat, position: WatermarkPosition }`, with `CodableColor` stored as sRGB RGBA doubles and defaults matching the old hardcoded watermark (`white`, alpha `0.10`, `240pt`, `.lowerRight`).
+- Preferences persist independently from Space names at `~/Library/Application Support/VirtualOverlay/preferences.json`, alongside but separate from `spaces.json`, via `PreferencesStore` / `JSONFilePreferencesStore`.
+- Introduced a shared `WatermarkAppearance` `ObservableObject`; app launch loads preferences into it, `OverlayController` subscribes for live render updates, and the Preferences window edits the same instance.
+- Added a single-instance `PreferencesWindowController` using a real titled/closable/miniaturizable `NSWindow` titled `Virtual Overlay — Preferences`; repeated menu opens bring the same window forward, and the main menu supplies standard Cmd-W/Cmd-Q behavior.
+- Preference writes are live-preview/no-apply and debounced at 500ms after the last `WatermarkAppearance` change to avoid slider disk thrash; app termination flushes the latest preferences immediately.
+
+### Watermark Opacity Preference (2026-05-10T19:18:41.680-04:00)
+- Decoupled watermark color from intensity: `WatermarkPreferences` now stores an opaque RGB `color` plus a separate `opacity` double, and `OverlayRenderer` composes `color.opacity(opacity)` at render time.
+- Migration rule: legacy `preferences.json` files without `opacity` lift the old embedded `color.alpha` into `opacity`, normalize `color.alpha` to `1.0`, and persist the v2 shape on the next save cycle.
+- Preferences now shows a top-level Opacity slider adjacent to Color; curated swatches are pure colors and preserve the current opacity. The SwiftUI `ColorPicker` uses `supportsOpacity: false` so there is only one visible opacity control.
+
+### Live Slider Labels vs Debounced Sources (2026-05-10T19:25:28.374-04:00)
+- Slider value labels must read from the same live `@State` binding the slider mutates, never from a downstream persisted or debounced preference source. The overlay may update immediately while a label stays stale if the label is wired to a non-observed child object or delayed storage path.
+
+### Live Preview Full Snapshot and Hover-State Stability (2026-05-10T19:32:00.082-04:00)
+- Root cause found: slider-driven appearance changes were complete enough at persistence level, but `OverlayController.appearanceDidChange()` rebuilt every `WatermarkHoverFleeState` on every opacity/font-size/color change. That reset the rendered watermark to the configured home corner during live preview, so a top-right watermark could snap back under the cursor while dragging unrelated controls.
+- Rule: every Preferences live preview mutation must push one complete `WatermarkPreferences` snapshot from a single SwiftUI `@State draft`; disk debounce is only for persistence, never for what the overlay sees.
+- `WatermarkAppearance` now publishes the whole `WatermarkPreferences` value as its atomic state, and the Preferences UI mutates `draft` for color, opacity, font size, and position before applying the full normalized snapshot.
+- Hover-flee state now resets only when the configured position actually changes; opacity/font-size/color previews preserve the watermark's current visible corner.
+- Verification: `swift build && swift test` passed with 32 tests, 0 failures; `./bundle.sh` produced `dist/Virtual Overlay.app`.
+
+
+### Watermark Font Family Selector (2026-05-10T19:32:38.748-04:00)
+- Added `WatermarkFontFamily` as a curated five-option system set: SF Pro, SF Mono, New York, Helvetica Neue, and Menlo.
+- The set stays disciplined: default system sans, system mono, system serif, one classic macOS sans, and one classic developer mono; all resolve through AppKit system/named font APIs with no user font picker, web font, or installed-font dependency.
+- `WatermarkPreferences` is now v3 with `fontFamily`; missing legacy keys decode to `.sfPro`, preserving old `preferences.json` files.
