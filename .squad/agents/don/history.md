@@ -157,3 +157,12 @@ _(append below as work proceeds)_
 - **Your v1.2 strategy was correct** (private CGS for session-scoped disambiguation); the implementation detail (global vs per-display symbol) was wrong. The CGS matching logic you wrote remains intact; the symbol resolution now correctly uses the per-display alias.
 - **Verification:** All 27 tests pass, 0 failures. Regression tests added with GOTCHA comment at call site.
 - **Decision:** Ken's correction supersedes the CGS symbol detail in Decision 3 (v1.2). Strategy stays; implementation changes to per-display.
+
+### App Icon & Bundle Wiring (2026-05-10T17:26:50.686-04:00) — Susan's Icon Design
+- **Note:** Susan (new Designer) completed the app icon (commit 7622eed); Scribe documenting bundle integration.
+- **Icon:** Programmatic typographic mark: SF Pro ultra-light `[V]` framed by geometric bracket rules on near-black squircle.
+- **Source:** `Tools/IconGenerator/` (Swift CLI using Core Graphics / AppKit); outputs all required PNG sizes via `iconutil` and produces `.icns`.
+- **Outputs:** Checked in at `Resources/AppIcon.iconset/` and `Resources/AppIcon.icns` so fresh clones do not need to run the generator.
+- **Bundle.sh update:** Copy step added to wire `Resources/AppIcon.icns` → `dist/Virtual Overlay.app/Contents/Resources/AppIcon.icns`; `CFBundleIconFile = AppIcon` set in generated `Info.plist`.
+- **Visual consistency:** Icon echoes the product's core ambient aesthetic—restrained, infrastructural, like Bloomberg terminal labels or architectural signage. No gradients, neon, skeuomorphism.
+- **Decision 5:** Approved in `.squad/decisions.md`. Establishes v1 visual identity foundation; future assets (status bar glyph, etc.) follow same aesthetic.

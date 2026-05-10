@@ -143,3 +143,39 @@ Scribe processed Don-7 successful bug fix (Space identity collision):
 - Git state: 2 commits on main, clean working directory (scribe writes staged for commit).
 
 ---
+
+## 2026-05-10T17:26:50.686-04:00 — App Icon & Designer Onboarding (Susan)
+
+**Scope:** Documentation consolidation for Susan's app icon design and team onboarding as Designer.
+
+**Tasks executed:**
+1. ✅ PRE-CHECK: All required files verified present. Susan charter, icon-design-rationale, decision inbox, orchestration-log and session-log directories all accessible. Git commit 7622eed verified.
+2. ✅ DECISIONS ARCHIVE [HARD GATE]: Backed up decisions.md before modification (2026-05-10T17.26 archive).
+3. ✅ DECISION INBOX: Merged susan-app-icon.md into decisions.md as new Decision 5 with Approved status. Documented visual spec, rationale, implementation (generator at Tools/IconGenerator/), and bundle wiring.
+4. ✅ ORCHESTRATION LOG: Created entry 2026-05-10T17-26-50Z-susan.md documenting icon design, team onboarding, and charter establishment.
+5. ✅ SESSION LOG: Created .squad/log/2026-05-10T17-26-50Z-app-icon-and-designer-onboarding.md with session summary.
+6. ✅ CROSS-AGENT: Updated Don's history with note on app icon bundle wiring; updated Edsger's history with visual identity establishment and team growth (4→5).
+7. ✅ HISTORY SUMMARIZATION [HARD GATE]: Recording this session now.
+8. ⏭️ GIT COMMIT: Next step.
+9. ⏭️ HEALTH REPORT: Final step.
+
+**Decisions processed:**
+- **susan-app-icon.md** (2026-05-10T17:26:50.686-04:00): Approved. Programmatic typographic icon design (SF Pro ultra-light `[V]` framed by bracket rules on near-black squircle). Source-of-truth generator at `Tools/IconGenerator/`, outputs checked in at `Resources/AppIcon.iconset/` and `Resources/AppIcon.icns`. Bundle.sh integration complete; icon wired into `dist/Virtual Overlay.app/Contents/Resources/AppIcon.icns` with `CFBundleIconFile` reference in Info.plist.
+
+**Files created/modified:**
+- `.squad/decisions.md`: Added Decision 5 "Programmatic Typographic App Icon" with full visual spec, rationale, and implementation details.
+- `.squad/orchestration-log/2026-05-10T17-26-50Z-susan.md`: Created.
+- `.squad/log/2026-05-10T17-26-50Z-app-icon-and-designer-onboarding.md`: Created.
+- `.squad/agents/don/history.md`: Appended note on app icon bundle wiring.
+- `.squad/agents/edsger/history.md`: Appended note on visual identity establishment and team growth.
+- `.squad/decisions/decisions.md.archive-2026-05-10T17.26`: Archive backup.
+
+**Verification:**
+- Decision inbox: susan-app-icon.md merged and archived.
+- Orchestration log: Complete for Susan (first team task).
+- Session log: Present and comprehensive.
+- Don's history: Updated with icon/bundle integration context.
+- Edsger's history: Updated with Designer onboarding and team size change.
+- Cross-references: All consistent (timestamps, agent names, decision numbers).
+- Team roster: Susan added as 5th member (Designer / Visual role).
+- Git state: All files staged for commit.

@@ -76,3 +76,11 @@ Window management, Mission Control automation, layout restoration, tiling.
 - **The fix preserves your logic:** CGS matching order and the full fallback chain you specified remain intact. Only the symbol changes from global to per-display. All 27 tests pass, 0 failures.
 - **Decision impact:** Decision 3 (your v1.2) rationale stands unchanged. Decision 4 (Ken's correction) refines the implementation detail (CGS symbol choice). The architectural choice (private CGS for session-scoped ID) and the strategy-pattern architecture were proven sound by Don's clean implementation.
 
+### 2026-05-10 — Visual Identity Established (Susan, Designer)
+- **Team growth:** Designer position filled. Susan joined and shipped programmatic app icon in first session.
+- **Icon design:** Typographic mark—SF Pro ultra-light `[V]` framed by geometric bracket rules on near-black squircle. Echoes the product's ambient, infrastructural aesthetic (Bloomberg terminal labels, NYC subway signage, architectural marking systems).
+- **Implementation:** Source-of-truth in code (`Tools/IconGenerator/`, Swift CLI using Core Graphics / AppKit), not design-tool binary. Outputs all PNG sizes + `.icns`, checked in at `Resources/`.
+- **Bundle integration:** `bundle.sh` copies icon to app bundle and sets `CFBundleIconFile`. No Xcode project changes needed; design assets remain orthogonal to build.
+- **Decision 5:** Approved in `.squad/decisions.md`. v1 visual identity foundation locked; future assets (status bar glyph, etc.) will follow the same restrained, infrastructural aesthetic.
+- **Team impact:** Team size 4 → 5. Visual review authority established for future assets.
+
