@@ -19,6 +19,8 @@ mv "dist/Virtual Overlay.app" /Applications/
 
 The bundle uses `com.ormasoftchile.virtualoverlay` as its local bundle identifier.
 
+The app icon is generated programmatically. To modify it, edit the Swift generator in `Tools/IconGenerator/`, run `swift run` from that directory, then rebuild `Resources/AppIcon.icns` with `iconutil`.
+
 ### Run at login
 
 System Settings → General → Login Items & Extensions → Open at Login → +, then pick `/Applications/Virtual Overlay.app`.

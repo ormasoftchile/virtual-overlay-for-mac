@@ -51,6 +51,8 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <string>${APP_NAME}</string>
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
   <string>${BUNDLE_IDENTIFIER}</string>
   <key>CFBundleInfoDictionaryVersion</key>
@@ -75,6 +77,7 @@ PLIST
 
 printf "APPL????" > "${CONTENTS_DIR}/PkgInfo"
 cp "${BUILT_BINARY}" "${EXECUTABLE_PATH}"
+cp "Resources/AppIcon.icns" "${RESOURCES_DIR}/AppIcon.icns"
 chmod 755 "${EXECUTABLE_PATH}"
 
 if command -v xattr >/dev/null 2>&1; then
