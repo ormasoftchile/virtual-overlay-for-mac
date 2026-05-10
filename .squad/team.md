@@ -16,6 +16,7 @@
 | Ken | 🍎 macOS Specialist | .squad/agents/ken/charter.md | active |
 | Don | 🦅 Swift Specialist | .squad/agents/don/charter.md | active |
 | Alan | 🔬 Researcher | .squad/agents/alan/charter.md | active |
+| Susan | 🎨 Designer / Visual | .squad/agents/susan/charter.md | active |
 | Scribe | 📋 Session Logger | .squad/agents/scribe/charter.md | active |
 | Ralph | 🔄 Work Monitor | .squad/agents/ralph/charter.md | active |
 

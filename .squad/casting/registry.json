@@ -3,6 +3,7 @@
     "alan": { "persistent_name": "Alan", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" },
     "edsger": { "persistent_name": "Edsger", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" },
     "don": { "persistent_name": "Don", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" },
-    "ken": { "persistent_name": "Ken", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" }
+    "ken": { "persistent_name": "Ken", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" },
+    "susan": { "persistent_name": "Susan", "universe": "user-specified", "created_at": "2026-05-10", "legacy_named": true, "status": "active" }
   }
 }

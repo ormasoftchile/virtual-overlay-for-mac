@@ -10,6 +10,7 @@ How to decide who handles what.
 | macOS system layer, AppKit, NSWindow, Spaces detection, accessibility | Ken | Transparent click-through window, Space-change detection, multi-monitor, fullscreen behavior |
 | Swift / SwiftUI implementation | Don | Watermark view, inline rename editor, persistence, concurrency |
 | Research & investigation corpus | Alan | Spaces APIs survey, prior art (Hammerspoon/yabai), permissions, distribution risk |
+| Visual identity, app icon, status bar glyph, design assets | Susan | App icon, glyphs, any visual asset; designs-in-code |
 | Code review (architecture) | Edsger | Cross-module changes, scope creep |
 | Code review (system layer) | Ken | Anything touching private APIs, window levels, accessibility |
 | Code review (Swift craft) | Don | Concurrency, lifecycle, memory of long-running components |
