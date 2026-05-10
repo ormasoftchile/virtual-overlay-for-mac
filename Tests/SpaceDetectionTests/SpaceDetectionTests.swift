@@ -62,4 +62,67 @@ final class SpaceDetectionTests: XCTestCase {
         XCTAssertTrue(geometry.allSatisfy { $0.count == 16 })
         XCTAssertEqual(geometry, geometry.sorted())
     }
+
+    func testCGSResolverPrefersPerDisplayManagedSpaceLookup() {
+        MockCGS.reset()
+        MockCGS.managedSpaceByDisplayUUID = ["display-a": 4242]
+        let symbols = CGSPrivateSymbols(
+            mainConnectionID: MockCGS.mainConnectionID,
+            managedDisplayGetCurrentSpace: MockCGS.managedDisplayGetCurrentSpace,
+            getActiveSpace: MockCGS.getActiveSpace
+        )
+
+        let id = currentCGSSpaceID(forDisplayUUID: "display-a", symbols: symbols)
+
+        XCTAssertEqual(id, 4242)
+        XCTAssertEqual(MockCGS.managedDisplayUUIDs, ["display-a"])
+        XCTAssertEqual(MockCGS.activeSpaceCallCount, 0)
+    }
+
+    func testCGSResolverFallsBackToGlobalActiveSpaceWhenPerDisplaySymbolMissing() {
+        MockCGS.reset()
+        MockCGS.activeSpaceID = 99
+        let symbols = CGSPrivateSymbols(
+            mainConnectionID: MockCGS.mainConnectionID,
+            managedDisplayGetCurrentSpace: nil,
+            getActiveSpace: MockCGS.getActiveSpace
+        )
+
+        let id = currentCGSSpaceID(forDisplayUUID: "display-a", symbols: symbols)
+
+        XCTAssertEqual(id, 99)
+        XCTAssertEqual(MockCGS.managedDisplayUUIDs, [])
+        XCTAssertEqual(MockCGS.activeSpaceCallCount, 1)
+    }
+}
+
+private enum MockCGS {
+    static var managedSpaceByDisplayUUID: [String: CGSSpaceID] = [:]
+    static var managedDisplayUUIDs: [String] = []
+    static var activeSpaceID: CGSSpaceID = 0
+    static var activeSpaceCallCount = 0
+
+    static func reset() {
+        managedSpaceByDisplayUUID = [:]
+        managedDisplayUUIDs = []
+        activeSpaceID = 0
+        activeSpaceCallCount = 0
+    }
+
+    static func mainConnectionID() -> CGSConnectionID {
+        7
+    }
+
+    static func managedDisplayGetCurrentSpace(_ connection: CGSConnectionID, _ displayUUID: CFString) -> CGSSpaceID {
+        XCTAssertEqual(connection, 7)
+        let uuid = displayUUID as String
+        managedDisplayUUIDs.append(uuid)
+        return managedSpaceByDisplayUUID[uuid] ?? 0
+    }
+
+    static func getActiveSpace(_ connection: CGSConnectionID) -> CGSSpaceID {
+        XCTAssertEqual(connection, 7)
+        activeSpaceCallCount += 1
+        return activeSpaceID
+    }
 }

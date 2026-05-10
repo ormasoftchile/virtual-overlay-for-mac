@@ -226,6 +226,22 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(store.name(for: current), "second")
     }
 
+    @MainActor
+    func testDisplayUUIDDiscriminatesIdentitiesWhenBrokenCGSImplementationReturnsSameSpaceID() {
+        let fileURL = uniqueStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let builtInDisplay = identity(displayUUID: "display-a", windows: ["Safari:Docs"], ordinal: 2, frontmostAppBundleID: "com.apple.Safari", cgsSpaceID: 200)
+        let externalDisplay = identity(displayUUID: "display-b", windows: ["Safari:Docs"], ordinal: 2, frontmostAppBundleID: "com.apple.Safari", cgsSpaceID: 200)
+        let store = JSONFileSpaceNameStore(fileURL: fileURL)
+        store.setName("second", for: builtInDisplay)
+        store.setName("third", for: externalDisplay)
+
+        XCTAssertEqual(store.name(for: builtInDisplay), "second")
+        XCTAssertEqual(store.name(for: externalDisplay), "third")
+        XCTAssertNotEqual(builtInDisplay, externalDisplay)
+    }
+
     private func uniqueStoreURL() -> URL {
         URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent(".build", isDirectory: true)

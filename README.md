@@ -2,17 +2,26 @@
 
 Virtual Overlay is a public-API-only macOS agent that draws a persistent, click-through watermark over every Space so users can see and eventually rename their current desktop context without Dock or window-manager noise.
 
-## Build
+## Install & Run
+
+### Quick run (development)
 
 ```bash
-swift build
+swift run
 ```
 
-## Run
+### Build the bundled app
 
 ```bash
-swift run VirtualOverlay
+./bundle.sh
+mv "dist/Virtual Overlay.app" /Applications/
 ```
+
+The bundle uses `com.ormasoftchile.virtualoverlay` as its local bundle identifier.
+
+### Run at login
+
+System Settings → General → Login Items & Extensions → Open at Login → +, then pick `/Applications/Virtual Overlay.app`.
 
 ## Modules
 

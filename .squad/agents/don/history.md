@@ -39,6 +39,13 @@
 ## Learnings
 _(append below as work proceeds)_
 
+### SwiftPM App Bundle Script (2026-05-10T17:02:16.335-04:00)
+- Added root `bundle.sh` to build the SwiftPM release product `VirtualOverlay` and wrap it as `dist/Virtual Overlay.app` with `Contents/MacOS`, `Contents/Resources`, generated `Info.plist`, and `PkgInfo`.
+- Chose `CFBundleIdentifier = com.ormasoftchile.virtualoverlay`, `CFBundleShortVersionString = 0.1.0`, `CFBundleVersion = 1`, and `LSMinimumSystemVersion = 13.0` to match `Package.swift`'s macOS 13 floor.
+- Added `LSUIElement = true` to the bundle `Info.plist` so Launch Services treats it as a no-Dock accessory app from launch, matching the runtime `NSApp.setActivationPolicy(.accessory)` path.
+- The script clears quarantine/extended attributes when possible and attempts ad-hoc local signing with `codesign --force --deep --sign -`; signing failures warn but do not fail bundling because notarization/certificates are out of v1 scope.
+- `dist/` is ignored as generated build output. Follow-up: app icon/design asset remains intentionally out of scope.
+
 ### Root SwiftPM Scaffold (2026-05-10T12:25:14.215-04:00)
 - Created the root SwiftPM scaffold with `Package.swift`, `Sources/App`, and four library targets: `OverlayRenderer`, `SpaceDetection`, `Persistence`, and `Interaction`, plus matching test targets.
 - Ported Ken's overlay recipe into `OverlayRenderer`: `OverlayWindow`, SwiftUI `WatermarkView`, and `OverlayController` with injectable text source support and per-screen rebuilds.
@@ -142,3 +149,11 @@ _(append below as work proceeds)_
 - **Gitattributes preserved:** `.squad/decisions.md` and `.squad/agents/*/history.md` configured for `merge=union` to avoid conflicts on append-only team state.
 - **Working tree clean:** `git status` shows no staged, unstaged, or untracked files. Repository ready for remote addition.
 - **Note:** No remote configured yet; Cristian will add one if needed.
+
+### Multi-Display CGS Per-Display Lookup Correction (2026-05-10T17:18:00.082-04:00) — Ken's Fix
+- **Status:** Don was locked out of this revision per reviewer-rejection-lockout pattern (Ken handled Ken's earlier probe assignments). Ken diagnosed and corrected the implementation.
+- **The bug:** Your v1.2 implementation used `CGSGetActiveSpace(connection)` for Space identity, which is global to the keyboard-focused display, not per-display. Cristian's multi-display setup showed all overlays with the same name because every display resolved to the focused display's Space ID.
+- **The fix:** Ken implemented per-display `CGSManagedDisplayGetCurrentSpace(connection, displayUUID)` for each overlay's NSScreen. The fallback chain is: per-display symbol → global CGS → public heuristic, each tier logging diagnostics.
+- **Your v1.2 strategy was correct** (private CGS for session-scoped disambiguation); the implementation detail (global vs per-display symbol) was wrong. The CGS matching logic you wrote remains intact; the symbol resolution now correctly uses the per-display alias.
+- **Verification:** All 27 tests pass, 0 failures. Regression tests added with GOTCHA comment at call site.
+- **Decision:** Ken's correction supersedes the CGS symbol detail in Decision 3 (v1.2). Strategy stays; implementation changes to per-display.

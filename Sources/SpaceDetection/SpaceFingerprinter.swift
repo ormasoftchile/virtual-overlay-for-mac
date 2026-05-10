@@ -44,13 +44,16 @@ public final class SpaceFingerprinter {
     private var nextOrdinalByDisplay: [String: Int] = [:]
     private let now: () -> Date
     private let windowProvider: @MainActor () -> [[String: Any]]
+    private let cgsSpaceIDProvider: (String) -> UInt64?
 
     public init(
         now: @escaping () -> Date = Date.init,
-        windowProvider: (@MainActor () -> [[String: Any]])? = nil
+        windowProvider: (@MainActor () -> [[String: Any]])? = nil,
+        cgsSpaceIDProvider: ((String) -> UInt64?)? = nil
     ) {
         self.now = now
         self.windowProvider = windowProvider ?? SpaceFingerprinter.currentCGWindowInfo
+        self.cgsSpaceIDProvider = cgsSpaceIDProvider ?? { currentCGSSpaceID(forDisplayUUID: $0) }
     }
 
     /// Builds a stable signature from normalized layer-0 application windows.
@@ -85,10 +88,13 @@ public final class SpaceFingerprinter {
         let observedAt = now()
         let rawWindows = windowProvider()
         let frontmostAppBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        let cgsID = currentCGSSpaceID()
         return NSScreen.screens.map { screen in
             let displayID = screen.displayID ?? 0
             let displayUUID = Self.displayUUID(for: displayID)
+            // Private/undocumented CGS gotcha: CGSGetActiveSpace is global to the focused
+            // display. Per-overlay identity must use CGSManagedDisplayGetCurrentSpace with
+            // this NSScreen's display UUID, or multi-display Space names can be cross-bound.
+            let cgsID = cgsSpaceIDProvider(displayUUID)
             let screenWindows = Self.normalizedWindows(from: rawWindows, intersecting: screen.frame)
             let signature = Self.windowSignature(from: screenWindows)
             let geometrySignature = Self.windowGeometrySignature(from: screenWindows)

@@ -70,3 +70,9 @@ _(append below as work proceeds)_
 - **Decision impact:** Edsger decided to lift the public-API-only constraint. Private API (`CGSGetActiveSpace` via `dlsym`) will provide session-scoped numeric Space ID that trivially disambiguates. Your probe work was the empirical foundation that made this decision defensible.
 - **Implication for your scope:** The public-API strategy remains the gold standard for fallback. The probe-2 finding becomes a key justification in the decision record for why private APIs were necessary. Your research stands as the evidence that public-only was insufficient.
 
+
+### Per-display CGS Space lookup fix (2026-05-10T17:18:00.082-04:00)
+- Diagnosis: Cristian's report matched the hypothesis. Don's v1.2 code resolved one `CGSGetActiveSpace(connection)` value before iterating `NSScreen.screens`, so every display snapshot received the globally active/focused display's Space ID.
+- Correct private/undocumented API: `CGSManagedDisplayGetCurrentSpace(CGSConnectionID, CFString displayUUID)` is the per-display lookup; the SLS/SkyLight-prefixed alias is equivalent prior art. The display UUID string comes from public `CGDisplayCreateUUIDFromDisplayID()`.
+- Fallback chain now: `CGSManagedDisplayGetCurrentSpace`/`SLSManagedDisplayGetCurrentSpace` per display → `CGSGetActiveSpace`/`SLSGetActiveSpace` global compatibility fallback → public heuristic fingerprint if CGS symbols are missing or return invalid IDs. Each downgrade emits stderr diagnostics.
+- GOTCHA: `CGSGetActiveSpace` is private/undocumented and global to the keyboard-focused display, not the overlay's display. In multi-display setups it can silently cross-bind names between monitors; never use it as a per-display Space identity source.

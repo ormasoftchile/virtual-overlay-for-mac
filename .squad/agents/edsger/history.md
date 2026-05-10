@@ -69,3 +69,10 @@ Window management, Mission Control automation, layout restoration, tiling.
 - **Signing Trade-off (v1):** Ad-hoc signing (`codesign --sign -`) is in effect. Meets Gatekeeper requirements for local execution and subprocess launching. Does not require macOS Developer certificate or provisioning profile. Failures are warnings, not blockers. v2 can replace with certificate signing orthogonally.
 - **Unblocked:** Reproducible, scriptable builds for CI/CD pipelines. End-user deployment without Xcode. Path to notarization and App Store in v2 (certificate signing upgrade, bundle.sh structure unchanged).
 
+### 2026-05-10 — Multi-Display CGS Implementation Correction (Ken-2)
+- **Status:** Ken's revision (Don locked out per reviewer-lockout protocol). Decision 4 now supersedes your v1.2 implementation detail.
+- **Your v1.2 strategy was correct:** Lifting public-API-only constraint for session-scoped Space disambiguation via private CGS was the right call. The evidence (Ken's probe work) was solid; the rationale was sound.
+- **The implementation detail was wrong:** You implemented with global `CGSGetActiveSpace`, but Cristian's multi-display setup revealed it's keyboard-focused-display only. Ken corrected to per-display `CGSManagedDisplayGetCurrentSpace(connection, displayUUID)`.
+- **The fix preserves your logic:** CGS matching order and the full fallback chain you specified remain intact. Only the symbol changes from global to per-display. All 27 tests pass, 0 failures.
+- **Decision impact:** Decision 3 (your v1.2) rationale stands unchanged. Decision 4 (Ken's correction) refines the implementation detail (CGS symbol choice). The architectural choice (private CGS for session-scoped ID) and the strategy-pattern architecture were proven sound by Don's clean implementation.
+

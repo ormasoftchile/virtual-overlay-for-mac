@@ -229,3 +229,54 @@ This decision explicitly reverses Edsger's own v1 public-API-only ratification. 
 **Full specification:** `.squad/decisions/inbox/edsger-space-identity-v1.2.md`
 
 ---
+
+## 4. Decision: Per-display CGS Space Contract (Ken Correction to v1.2)
+**Author:** Ken  
+**Date:** 2026-05-10T17:18:00.082-04:00  
+**Status:** Supersedes Edsger v1.2's `CGSGetActiveSpace` implementation detail
+**Supersedes:** Edsger/Don Space Identity v1.2 (implementation detail only)
+
+### The correction
+
+Don's v1.2 implementation used `CGSGetActiveSpace(connection)` as the private CGS identity source. This symbol is private and returns the globally active Space for the **currently focused display**, not the current Space for an arbitrary monitor.
+
+For multi-display correctness, Space identity capture must call the private per-display symbol:
+
+```c
+CGSSpaceID CGSManagedDisplayGetCurrentSpace(CGSConnectionID cid, CFStringRef displayUUID);
+```
+
+The SkyLight/SLS-prefixed alias (`SLSManagedDisplayGetCurrentSpace`) is equivalent prior art.
+
+### Contract
+
+When creating a `SpaceIdentity` for an `NSScreen`:
+
+1. Resolve that screen's `CGDirectDisplayID`
+2. Convert to display UUID string via `CGDisplayCreateUUIDFromDisplayID()`
+3. Call `CGSManagedDisplayGetCurrentSpace(connection, displayUUID)` per display
+4. Store returned Space ID with corresponding `displayUUID`
+5. Match CGS IDs only when both `cgsSpaceID` and `displayUUID` match
+
+### Fallback chain
+
+1. `CGSManagedDisplayGetCurrentSpace`/`SLSManagedDisplayGetCurrentSpace` per display
+2. `CGSGetActiveSpace`/`SLSGetActiveSpace` global fallback (only when per-display unavailable)
+3. Existing public-API heuristic fingerprint when private symbols unavailable
+
+Each fallback level emits stderr diagnostics.
+
+### Diagnosis & rationale
+
+Cristian's multi-display setup exhibited cross-display Space name binding: every display resolved to the same focused display's Space ID, causing all overlays to show the same name. The hypothesis: `CGSGetActiveSpace` is global to the keyboard-focused display. **The fix:** Use the per-display symbol `CGSManagedDisplayGetCurrentSpace` to resolve each overlay's display independently. This maintains the v1.2 strategy (private CGS for session-scoped disambiguation) while correcting the multi-display bug.
+
+**GOTCHA:** `CGSGetActiveSpace` is private and returns the active Space for the **currently focused display**, not per-display. In multi-display setups it silently cross-binds Space names between monitors. Never use it as a per-display identity source; use only as a global compatibility fallback.
+
+### Implementation status
+
+- ✅ Per-display CGS resolver implemented in `SpaceDetection/CGSPrivate.swift`
+- ✅ Fallback chain tested and validated
+- ✅ 27 integration tests pass, 0 failures
+- ✅ Regression tests added with loud GOTCHA comment at call site
+
+---
