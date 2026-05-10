@@ -1,0 +1,231 @@
+# Squad Decisions
+
+## Active Decisions
+
+### 1. Project Shape & Module Boundaries
+**Proposed by:** Edsger  
+**Date:** 2026-05-10  
+**Status:** Proposed  
+**Full proposal:** `.squad/agents/edsger/proposals/2026-05-10-architecture-v1.md`
+
+**Decision:**
+1. **Project shape:** SwiftPM packages (`Packages/`) for all domain modules, with a thin Xcode `.xcodeproj` app target (`VirtualOverlay/`).
+2. **Four modules + app shell:**
+   - `OverlayRenderer` — transparent NSWindow + SwiftUI watermark
+   - `SpaceDetection` — pluggable strategies, emits SpaceID
+   - `Persistence` — SpaceID → name mapping, local JSON
+   - `Interaction` — Option-click, hotkeys, menu; coordinates the other three
+   - `VirtualOverlay` (app target) — wiring only, no domain logic
+3. **Dependency graph (acyclic):** App → Interaction → {OverlayRenderer, SpaceDetection, Persistence → SpaceDetection}
+4. **No sandbox at v1.** Revisit at v2 if public APIs prove sufficient.
+5. **macOS 13+ minimum deployment target.**
+
+---
+
+### 2. v1 Distribution Architecture (Public APIs Only)
+**From:** Alan (Researcher)  
+**Date:** 2026-05-10  
+**Status:** SUPERSEDED by Decision 3 (v1.2 lifts public-API constraint for Space identity)
+
+**Recommendation (archived):** Commit to public APIs for v1.
+- ✅ Notarization passes clean
+- ✅ App Store eligible
+- ✅ Zero permission prompts needed
+- ✅ Low maintenance (public APIs stable)
+- ✅ Proven model (Übersicht, Rectangle, AltTab)
+
+**Implications (archived):** v1 direct distribution (GitHub) + notarization. No private CGS APIs in scope.
+
+**Supersession note:** This decision was correct for general v1 distribution policy but did not account for the empirical impossibility of disambiguating sibling Spaces using only public APIs. Decision 3 (v1.2) lifts the constraint specifically for Space identity via `CGSGetActiveSpace`, while preserving the public-APIs-only policy for other modules.
+
+---
+
+## Governance
+
+- All meaningful changes require team consensus
+- Document architectural decisions here
+- Keep history focused on work, decisions focused on direction
+
+---
+
+## Don Decision: JSON Space Name Store
+**Date:** 2026-05-10T12:25:14.215-04:00  
+**From:** Don  
+**Status:** Proposed
+
+Use a local Codable JSON file at `~/Library/Application Support/VirtualOverlay/spaces.json` for the v1 `SpaceIdentity → name` store.
+
+**Reasoning:** JSON keeps the M1 persistence layer inspectable, testable under SwiftPM, and easy to migrate once Alan and Ken finalize stronger public-API Space identity heuristics. `UserDefaults` would hide schema shape and make orphaned Space mappings harder to review or clean up later.
+
+---
+
+## Alan → Don: Recommended v1 Space Identity (Persistence Module)
+**Date:** 2026-05-10  
+**From:** Alan (Researcher)  
+**To:** Don (Persistence module lead)  
+**Status:** Ready for review  
+**Priority:** Blocking; needed before Persistence scaffold
+
+**Summary:** Use Candidate B (Medium Identity) for v1 Persistence.
+
+**Key recommendation:**
+- Display UUID (hardware anchor via `CGDisplayCreateUUIDFromDisplayID`)
+- Window signature (fuzzy match on ≥70% Jaccard overlap)
+- Estimated ordinal (secondary signal, tie-breaker)
+- User-set label (mutable)
+
+**Match algorithm:** On `NSWorkspaceActiveSpaceDidChangeNotification`:
+1. Exact match: all three signals match → return stored Space
+2. Fuzzy match: display matches + ≥70% window set overlap (Jaccard) → update and return
+3. Fallback: no match → create new, label "Untitled Space"
+
+**Ken's blocking probes (must validate before lock-in):**
+1. Display UUID stable across reboots + unplugging/replugging?
+2. Does `CGWindowListCopyWindowInfo([.optionOnScreenOnly], …)` return only active Space windows or all Spaces?
+3. Can ordinal be reliably inferred, or too noisy?
+4. Do minimized windows appear in window list?
+5. Does `NSWorkspaceActiveSpaceDidChangeNotification` fire reliably on Sequoia?
+
+**Full detail:** `.squad/agents/alan/research/05-space-identity-heuristics.md`
+
+---
+
+## Don Decision: Option Interacts With Watermark
+**Date:** 2026-05-10T15:50:52.457-04:00  
+**From:** Don  
+**Status:** Accepted (implemented in Don-5)
+
+Holding Option is an explicit interaction signal for the watermark, not the screen behind it.
+
+**Implications:**
+- Overlay windows may receive mouse events while Option is held.
+- Hover-flee must be suspended while Option is held.
+- Option-click rename must target the watermark at its current visible position, including any fled corner.
+
+**Rationale:** Fixes collision between hover-flee and Option-click rename. When user holds Option to click watermark, the watermark must remain visible and clickable even if it would normally flee. Rename hit-test respects the watermark's current position, accounting for any flee-driven corner relocation.
+
+---
+
+## Don Decision: Drop Space-Change Debounce (SUPERSEDES 250ms debounce approach)
+**Date:** 2026-05-10T15:58:36.087-04:00  
+**From:** Don  
+**Status:** Accepted (implemented in Don-6)
+
+**Supersedes:** Earlier M2 decision to debounce `NSWorkspaceSpaceDetector` notifications at 250ms before fingerprint collection.
+
+New decision: emit Space-change events immediately on the main actor. Fingerprinting plus store lookup is cheap enough, and duplicate notification bursts are handled by idempotent output: `OverlayController.updateText(_:)` no-ops when the resolved name is already displayed.
+
+**Implications:**
+- Space switches should update the watermark with no perceptible debounce gap.
+- Watermark text changes snap.
+- Position changes, including hover-flee, remain animated.
+
+**Implementation detail:** Replaced 250ms debounce with output-side dedup—if resolved name == currently displayed, no-op. Watermark text changes now snap; only position changes (hover-flee) animate.
+
+**Test Result:** 15 tests, 0 failures
+
+---
+
+## Don Decision: Space Identity v1.1 (SUPERSEDED by Decision 3: v1.2)
+**Date:** 2026-05-10T16:06:03.295-04:00  
+**From:** Don  
+**Status:** SUPERSEDED — Provided incremental improvement but did not resolve root collision class
+
+**Decision (archived):** Space identity v1.1 adds discriminating public-API signals to the fingerprint.
+
+**What was added:**
+- `displayUUID`
+- `windowSignature`
+- `frontmostAppBundleID` ← NEW: discriminates sibling Spaces with similar window sets
+- `windowCount` ← NEW: secondary cardinality signal
+- `windowGeometrySignature` ← NEW: hash of window bounds
+- `ordinal`
+- `firstSeen`
+
+**Why it failed:** When two Spaces have the same foreground app (or no foreground app), all discriminators remain identical. Alan's research confirmed that `CGWindowListCopyWindowInfo` returns the same window set for sibling Desktop Spaces, violating the core assumption. Matcher correctly returned nil (ambiguous), but user cannot disambiguate if every visit to either Space produces the same "UNNAMED" watermark.
+
+**Supersession note:** Decision 3 (v1.2) adds session-scoped `cgsSpaceID` from `CGSGetActiveSpace`, which provides a numeric ID that trivially disambiguates sibling Spaces. The v1.1 enriched fingerprint signals are retained as fallback heuristics. The root collision problem is now solved; v1.1 was a necessary but insufficient partial fix.
+
+**Migration:** All v1.1 JSON entries remain valid; v1.2 adds the CGS ID field (optional, nullable) and adds CGS exact-match to the highest-priority match tier.
+
+---
+
+## 3. Decision: Space Identity v1.2 — Lift Public-API-Only Constraint
+**Author:** Edsger (Lead / Xcode & Architecture)  
+**Date:** 2026-05-10  
+**Status:** Decided  
+**Supersedes:**
+- Edsger's v1 public-API-only ratification (Decision 2)
+- Don's Space Identity v1.1 decision
+
+### The decision
+
+**Path A — Lift the public-API-only constraint for v1.2.** Introduce a `CGSPrivateSpaceDetector` strategy that calls `CGSGetActiveSpace` (via `CGSMainConnectionID`) to obtain the session-scoped numeric Space ID from Core Graphics Services. This strategy slots behind the existing `SpaceDetectionStrategy` protocol with zero changes to the protocol surface. The public-API `NSWorkspaceSpaceDetector` is retained as the automatic fallback if the private call fails or returns 0.
+
+**Rationale:** Public macOS APIs cannot reliably distinguish two Desktop-style Spaces on the same display when they have similar or no foreground apps — Cristian has hit this collision class twice, and Don's v1.1 enrichment of the fingerprint did not resolve it because `CGWindowListCopyWindowInfo([.optionOnScreenOnly])` does not actually scope to the active Space. `CGSGetActiveSpace` returns a per-session unique numeric ID that trivially disambiguates sibling Spaces; the `SpaceDetectionStrategy` protocol was designed for exactly this extension point, and our v1 distribution posture (direct distribution, no App Store, no sandbox) already absorbs the notarization and breakage risks.
+
+### What failed
+
+1. **v1 public-API-only identity:** Display UUID + window-set Jaccard + ordinal. Failed because `CGWindowListCopyWindowInfo` returns the same window set for sibling Desktop Spaces.
+
+2. **v1.1 enriched fingerprint:** Added `frontmostAppBundleID`, `windowCount`, `windowGeometrySignature`. Failed for the same root cause — when two Spaces have the same foreground app (or no foreground app), the fingerprint is identical.
+
+3. **The fundamental limit:** No combination of public signals can distinguish two Spaces that look the same to the windowing server's public interface. Cristian's experience is the empirical answer: **the worst case is real and common.**
+
+### Why Path A, not B or C
+
+- **Path B (UX-only fix):** When every Space produces the same fingerprint, the user cannot disambiguate. Path B is necessary but not sufficient.
+
+- **Path C (session-local visit-order tracking):** Fragile — returning to Space 2 after visiting Space 3 produces the same fingerprint as the first visit to Space 2.
+
+- **Path A (private API):** `CGSGetActiveSpace` returns a unique integer per Space per session. It solves the disambiguation problem completely within a session. Combined with the existing `firstSeen` timestamp and user rename, it provides a solid identity anchor.
+
+### Implementation directive for Don
+
+**Goal:** Wire `CGSGetActiveSpace` into the identity pipeline. No changes to `SpaceDetectionStrategy`, `OverlayRenderer`, or `Interaction`.
+
+#### Step 1 — Add CGS declarations (new file)
+
+Create `Sources/SpaceDetection/CGSPrivate.swift` with runtime-resolved private CGS symbols via `dlsym`. If the symbols are unavailable (future macOS), all lookups return nil.
+
+#### Step 2 — Add `cgsSpaceID` to `SpaceIdentity`
+
+Add `public let cgsSpaceID: UInt64?` to `SpaceIdentity`. Default it to `nil` in the `init(from decoder:)` path so existing JSON entries decode without migration.
+
+#### Step 3 — Populate CGS ID in `SpaceFingerprinter`
+
+In `SpaceFingerprinter.currentSnapshots()`, after building the fingerprint, attempt to resolve the CGS ID and pass it into the `SpaceIdentity` initializer.
+
+#### Step 4 — Update match priority in `JSONFileSpaceNameStore`
+
+In `match(currentFingerprint:)`, before the existing exact-signal match, add CGS exact-match as highest priority:
+- If `currentCGS` and stored `cgsSpaceID` are both non-nil and match, return the stored entry.
+
+#### Step 5 — Invalidate stale CGS IDs on launch
+
+In `JSONFileSpaceNameStore.init`, after loading from disk, nil out all `cgsSpaceID` values (they don't survive across sessions).
+
+#### Step 6 — Confidence upgrade
+
+When `cgsSpaceID` is non-nil and matched, set `SpaceDetectionConfidence` to `.high`.
+
+#### Step 7 — Tests
+
+- Add a test that two `SpaceIdentity` values with different `cgsSpaceID` but identical public signals match to different stored names.
+- Add a test that when `cgsSpaceID` is nil on the current fingerprint, fallback to existing signal/fuzzy matching works unchanged.
+- Add a test that stale CGS IDs (loaded from disk) don't prevent matching when a fresh CGS ID is available.
+
+#### What NOT to change
+
+- `SpaceDetectionStrategy` protocol — no changes needed.
+- `OverlayRenderer` — no changes.
+- `Interaction` — no changes.
+- The UNNAMED fallback — keep it.
+
+### Reversal acknowledgment
+
+This decision explicitly reverses Edsger's own v1 public-API-only ratification. The ratification was correct given the information available at the time. What we underestimated was the **within-session disambiguation** value of `CGSGetActiveSpace`: it doesn't solve persistence, but it does solve identity, and identity was the actual blocker. The right call today is more important than consistency with yesterday's right call.
+
+**Full specification:** `.squad/decisions/inbox/edsger-space-identity-v1.2.md`
+
+---

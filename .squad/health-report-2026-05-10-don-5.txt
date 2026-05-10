@@ -1,0 +1,60 @@
+# Health Report — 2026-05-10T20:00:00Z
+
+**Scribe:** Don-5 Bug Fix Complete. Hover-Flee & Option-Click Collision Resolved. History and decision reconciliation complete.
+
+## Task Execution Summary
+
+| Task | Status | Notes |
+|------|--------|-------|
+| 0. PRE-CHECK | ✅ PASS | decisions.md + inbox merged; orchestration-log clean; session-log structure verified |
+| 1. DECISIONS ARCHIVE | ✅ DONE | Inbox contains 1 decision (don-option-interacts-watermark.md); ready for merge |
+| 2. DECISION INBOX | ✅ DONE | Merged `don-option-interacts-watermark.md` → decisions.md; deduplicated; removed inbox file |
+| 3. ORCHESTRATION LOG | ✅ DONE | Written 2026-05-10T20:00:00Z-don-5.md (Bug fix: hover-flee + Option-click) |
+| 4. SESSION LOG | ✅ DONE | Written 2026-05-10T20-00-00-hover-flee-option-collision-fix.md |
+| 5. CROSS-AGENT | ✅ DONE | None needed (don-5 isolated to interaction layer) |
+| 6. HISTORY SUMMARIZATION | ⏭️ SKIP | All agent files < 15,360 bytes; don/history.md = 10.6 KB (current entry appended) |
+| 7. GIT COMMIT | ⏭️ SKIP | Per manifest directive (not a git repo) |
+| 8. HEALTH REPORT | ✅ DONE | This report |
+
+## Artifacts Created
+
+- **Decisions:** `.squad/decisions/decisions.md` (updated, +400 bytes for Option-click decision)
+- **Orchestration Log:** `.squad/orchestration-log/2026-05-10T20:00:00Z-don-5.md` (842 B)
+- **Session Log:** `.squad/log/2026-05-10T20-00-00-hover-flee-option-collision-fix.md` (1.1 KB)
+- **History:** `.squad/agents/don/history.md` (entry already appended by Don during work)
+
+## Team Status — Post-Don-5
+
+- **M2 + Bug Fix:** ✅ COMPLETE (Space identity + rename + hover-flee suspension)
+- **Build:** ✅ Green (14 tests, 0 failures)
+- **Hover-Flee Logic:** ✅ Suspended while Option held; resumes from current position on release
+- **Rename Hit-Test:** ✅ Uses watermark's current visible position (accounts for fled position)
+- **User Experience:** ✅ Option-click rename now works reliably even when watermark has fled
+
+## Collision Fix Details
+
+**Problem:** Hover-flee and Option-click rename collided. User held Option to click watermark, but watermark fled on hover, making it unreachable.
+
+**Solution:** 
+- Detect Option key state via global `flagsChanged` monitor
+- Suspend hover-flee while Option held
+- Pass watermark's current rendered position to rename hit-test
+- Resume hover-flee on Option release from whatever position watermark is currently at
+
+## Blockers
+
+None. Don-5 complete. Hover-flee + Option-click interaction stable.
+
+## Next Milestones
+
+1. **Architecture review** (All: validate M2.1 collision fix; confirm ready for M3)
+2. **Integration testing** (All: smoke test Option-click + hover-flee behavior on multi-monitor setups)
+3. **M3 hotkeys** (Interaction: Space navigation shortcuts)
+4. **Multi-monitor refinement** (Ken: edge cases, fullscreen/Stage Manager edge cases)
+
+## Quality Metrics
+
+- **Test Coverage:** 14 tests, 0 failures (13 from M2 + 1 new for collision fix)
+- **Code Quality:** All interaction logic isolated in `OptionClickRenameController`
+- **User-Facing Reliability:** ✅ Rename targeting uses dynamic position, not static bounds
+- **Team Health:** Synchronized; bug fix deployed cleanly; decision captured in team history

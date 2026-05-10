@@ -1,0 +1,26 @@
+Probe 3: activeSpaceDidChangeNotification info
+Date: 2026-05-10T15:14:32.937-04:00
+Run duration: 60 seconds
+Initial snapshot:
+initial: windowCount=26
+initial[0] owner="Control Center" title="<untitled>" layer=25
+initial[1] owner="Control Center" title="<untitled>" layer=25
+initial[2] owner="Control Center" title="<untitled>" layer=25
+initial[3] owner="Control Center" title="<untitled>" layer=25
+initial[4] owner="Control Center" title="<untitled>" layer=25
+initial[5] owner="Control Center" title="<untitled>" layer=25
+initial[6] owner="Control Center" title="<untitled>" layer=25
+initial[7] owner="Control Center" title="<untitled>" layer=25
+initial[8] owner="Window Server" title="Menubar" layer=24
+initial[9] owner="Dock" title="<untitled>" layer=20
+initial[10] owner="Code - Insiders" title="<untitled>" layer=0
+initial[11] owner="iTerm2" title="<untitled>" layer=0
+initial[12] owner="App Store" title="<untitled>" layer=0
+initial[13] owner="Code - Insiders" title="<untitled>" layer=0
+initial[14] owner="Code - Insiders" title="<untitled>" layer=0
+initial[15] owner="Code - Insiders" title="<untitled>" layer=0
+initial[16] owner="Code - Insiders" title="<untitled>" layer=0
+initial[17] owner="Safari" title="<untitled>" layer=0
+initial[18] owner="Preview" title="<untitled>" layer=0
+initial[19] owner="Preview" title="<untitled>" layer=0
+Finished. Notification count: 0. Elapsed: 60.056s

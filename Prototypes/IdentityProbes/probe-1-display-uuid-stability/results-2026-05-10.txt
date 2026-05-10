@@ -1,0 +1,4 @@
+Probe 1: display UUID stability
+Date: 2026-05-10T15:14:32.937-04:00
+Screen count: 1
+screen[0] name="Built-in Retina Display" displayID=1 uuid=37D8832A-2D66-02CA-B9F7-8F30A301B230 frame=(0.0, 0.0, 1680.0, 1050.0) visibleFrame=(0.0, 62.0, 1680.0, 958.0)

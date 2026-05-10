@@ -1,0 +1,11 @@
+{
+  "universe_usage_history": [],
+  "assignment_cast_snapshots": {
+    "initial-2026-05-10": {
+      "assignment_id": "initial-2026-05-10",
+      "universe": "user-specified",
+      "members": ["Alan", "Edsger", "Don", "Ken"],
+      "note": "Names provided directly by user; casting algorithm bypassed."
+    }
+  }
+}

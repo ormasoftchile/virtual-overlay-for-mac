@@ -1,0 +1,20 @@
+# Swift/Xcode build artifacts
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# macOS system noise
+.DS_Store
+.AppleDouble
+Icon?
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local machine activation (squad-specific)
+.squad-workstream
