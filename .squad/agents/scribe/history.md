@@ -108,3 +108,38 @@ Scribe processed Don-7 successful bug fix (Space identity collision):
 - "Fresh identity at rename submit" invariant clearly stated.
 
 ---
+
+## 2026-05-10T17:02:16.335-04:00 — Git Initialization & App Bundle Integration
+
+**Scope:** Documentation consolidation for Don-10 (git init) and Don-11 (app bundle) completions.
+
+**Tasks executed:**
+1. ✅ PRE-CHECK: All required files verified present. Git repo initialized (2 commits), bundle.sh executable, dist/Virtual Overlay.app built, 24 tests passing.
+2. ✅ DECISIONS ARCHIVE [HARD GATE]: Backed up decisions.md before modification (2026-05-10T17.06 archive).
+3. ✅ DECISION INBOX: Merged don-swiftpm-app-bundle.md into decisions.md as new decision with Approved status. Don-retire-space-rebind.md already merged during don-9 session; re-verified in decisions.md as Approved.
+4. ✅ ORCHESTRATION LOG: Created entries for Don-10 (2026-05-10T17-02-16Z-don-10.md) and Don-11 (2026-05-10T17-02-16Z-don-11.md).
+5. ✅ SESSION LOG: Created .squad/log/2026-05-10T17-02-16Z-git-init-and-app-bundle.md with session summary.
+6. ✅ CROSS-AGENT: Updated Edsger's history with bundle.sh and ad-hoc signing trade-off note, positioned under "Version Control & Distribution Infrastructure (v1 Complete)".
+7. ✅ HISTORY SUMMARIZATION [HARD GATE]: Recording this session now.
+8. ⏭️ GIT COMMIT: Next step.
+9. ⏭️ HEALTH REPORT: Final step.
+
+**Decisions processed:**
+- **don-swiftpm-app-bundle.md** (2026-05-10T17:02:16.335-04:00): Approved. Bundle identifier `com.ormasoftchile.virtualoverlay`, ad-hoc signing posture, LSUIElement = true in Info.plist, minimum macOS 13.0. SwiftPM-only project + standalone bundle.sh script = distributable `.app` without Xcode project churn.
+
+**Files created/modified:**
+- `.squad/decisions/decisions.md`: Added "SwiftPM App Bundle Script & Distributable Package" decision with full implementation status and rationale.
+- `.squad/orchestration-log/2026-05-10T17-02-16Z-don-10.md`: Created.
+- `.squad/orchestration-log/2026-05-10T17-02-16Z-don-11.md`: Created.
+- `.squad/log/2026-05-10T17-02-16Z-git-init-and-app-bundle.md`: Created.
+- `.squad/agents/edsger/history.md`: Updated with bundle.sh and ad-hoc signing trade-off note.
+
+**Verification:**
+- Decision inbox: don-swiftpm-app-bundle.md merged and archived.
+- Orchestration logs: Complete for both don-10 and don-11.
+- Session log: Present and comprehensive.
+- Edsger's history: Updated with bundle.sh implementation details.
+- Cross-references: All consistent (timestamps, agent names, decision numbers).
+- Git state: 2 commits on main, clean working directory (scribe writes staged for commit).
+
+---
