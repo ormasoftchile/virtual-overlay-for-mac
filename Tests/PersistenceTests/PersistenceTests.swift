@@ -7,6 +7,80 @@ import XCTest
 
 final class PersistenceTests: XCTestCase {
     @MainActor
+    func testRoundTripsWatermarkPreferencesThroughJSONStore() {
+        let fileURL = uniquePreferencesURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let preferences = WatermarkPreferences(
+            color: .defaultWatermark,
+            opacity: 0.25,
+            fontSize: 240,
+            fontFamily: .menlo,
+            position: .lowerRight
+        )
+        let store = JSONFilePreferencesStore(fileURL: fileURL)
+        store.save(preferences)
+
+        let reloaded = JSONFilePreferencesStore(fileURL: fileURL)
+        XCTAssertEqual(reloaded.preferences(), preferences)
+        XCTAssertEqual(reloaded.preferences().opacity, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(reloaded.preferences().fontFamily, .menlo)
+        XCTAssertEqual(reloaded.preferences().color.alpha, 1.0, accuracy: 0.0001)
+    }
+
+    @MainActor
+    func testMigratesLegacyWatermarkColorAlphaToOpacity() throws {
+        let fileURL = uniquePreferencesURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let legacyJSON = """
+        {
+          \"color\" : {
+            \"red\" : 0.72,
+            \"green\" : 0.76,
+            \"blue\" : 0.78,
+            \"alpha\" : 0.10
+          },
+          \"fontSize\" : 240,
+          \"position\" : \"lowerRight\"
+        }
+        """
+        try legacyJSON.data(using: .utf8)!.write(to: fileURL)
+
+        let store = JSONFilePreferencesStore(fileURL: fileURL)
+        let migrated = store.preferences()
+
+        XCTAssertEqual(migrated.opacity, 0.10, accuracy: 0.0001)
+        XCTAssertEqual(migrated.fontFamily, .sfPro)
+        XCTAssertEqual(migrated.color.alpha, 1.0, accuracy: 0.0001)
+
+        store.save(migrated)
+        let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as! [String: Any]
+        let savedColor = saved["color"] as! [String: Any]
+        XCTAssertEqual(saved["opacity"] as! Double, 0.10, accuracy: 0.0001)
+        XCTAssertEqual(saved["fontFamily"] as! String, "sfPro")
+        XCTAssertEqual(savedColor["alpha"] as! Double, 1.0, accuracy: 0.0001)
+    }
+
+    @MainActor
+    func testMissingWatermarkPreferencesReturnDefaults() {
+        let fileURL = uniquePreferencesURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let store = JSONFilePreferencesStore(fileURL: fileURL)
+
+        XCTAssertEqual(store.preferences(), .defaults)
+    }
+
+    func testAllWatermarkFontFamiliesResolveSystemFonts() {
+        XCTAssertEqual(WatermarkFontFamily.allCases.count, 5)
+        for family in WatermarkFontFamily.allCases {
+            XCTAssertFalse(family.displayName.isEmpty)
+            XCTAssertFalse(family.nsFont(size: 24, weight: .ultraLight).fontName.isEmpty)
+        }
+    }
+
+    @MainActor
     func testRoundTripsSpaceIdentityNameThroughJSONStore() {
         let fileURL = uniqueStoreURL()
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
@@ -248,6 +322,14 @@ final class PersistenceTests: XCTestCase {
             .appendingPathComponent("PersistenceTests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
             .appendingPathComponent("spaces.json")
+    }
+
+    private func uniquePreferencesURL() -> URL {
+        URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent(".build", isDirectory: true)
+            .appendingPathComponent("PersistenceTests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("preferences.json")
     }
 
     private func identity(

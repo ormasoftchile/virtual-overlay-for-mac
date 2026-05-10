@@ -14,7 +14,7 @@ let package = Package(
         .executable(name: "VirtualOverlay", targets: ["App"])
     ],
     targets: [
-        .target(name: "OverlayRenderer"),
+        .target(name: "OverlayRenderer", dependencies: ["Persistence"]),
         .target(name: "SpaceDetection"),
         .target(name: "Persistence", dependencies: ["SpaceDetection"]),
         .target(name: "Interaction", dependencies: ["OverlayRenderer", "Persistence", "SpaceDetection"]),
@@ -22,7 +22,7 @@ let package = Package(
             name: "App",
             dependencies: ["OverlayRenderer", "SpaceDetection", "Persistence", "Interaction"]
         ),
-        .testTarget(name: "OverlayRendererTests", dependencies: ["OverlayRenderer"]),
+        .testTarget(name: "OverlayRendererTests", dependencies: ["OverlayRenderer", "Persistence"]),
         .testTarget(name: "SpaceDetectionTests", dependencies: ["SpaceDetection"]),
         .testTarget(name: "PersistenceTests", dependencies: ["Persistence", "SpaceDetection"]),
         .testTarget(name: "InteractionTests", dependencies: ["Interaction", "OverlayRenderer", "Persistence", "SpaceDetection"])

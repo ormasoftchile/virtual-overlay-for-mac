@@ -1,5 +1,6 @@
 // OverlayRendererTests — smoke tests for the renderer module boundary.
 
+import Persistence
 import XCTest
 
 @testable import OverlayRenderer
@@ -60,6 +61,53 @@ final class OverlayRendererTests: XCTestCase {
         to: insideCursor, currentWatermarkBounds: watermarkBounds, isOptionHeld: false),
       .upperLeft)
     XCTAssertEqual(activeState.currentPosition, .upperLeft)
+  }
+
+  @MainActor
+  func testPreferencesViewModelUpdatesAppearance() {
+    let appearance = WatermarkAppearance()
+    let viewModel = WatermarkPreferencesViewModel(appearance: appearance)
+    let swatch = viewModel.swatches.first!
+
+    viewModel.setOpacity(0.37)
+    viewModel.chooseSwatch(swatch)
+    viewModel.setFontSize(500)
+    viewModel.setFontFamily(.sfMono)
+    viewModel.setPosition(.upperLeft)
+
+    XCTAssertEqual(appearance.color, swatch.color)
+    XCTAssertEqual(appearance.opacity, 0.37, accuracy: 0.0001)
+    XCTAssertEqual(appearance.fontSize, 400)
+    XCTAssertEqual(appearance.fontFamily, .sfMono)
+    XCTAssertEqual(appearance.position, .upperLeft)
+    XCTAssertEqual(viewModel.opacityLabel, "37%")
+    XCTAssertEqual(viewModel.fontSizeLabel, "400 pt")
+    XCTAssertEqual(viewModel.swatches.count, 6)
+    XCTAssertTrue(viewModel.swatches.allSatisfy { $0.color.alpha == 1.0 })
+  }
+
+  @MainActor
+  func testPreferencesViewModelAppliesCompleteSnapshotDuringSliderPreview() {
+    let initialPreferences = WatermarkPreferences(
+      color: .defaultWatermark,
+      opacity: 0.10,
+      fontSize: 240,
+      fontFamily: .helveticaNeue,
+      position: .upperRight
+    )
+    let appearance = WatermarkAppearance(preferences: initialPreferences)
+    let viewModel = WatermarkPreferencesViewModel(appearance: appearance)
+
+    var draft = appearance.preferences
+    draft.opacity = 0.42
+    draft.fontSize = 180
+    let applied = viewModel.apply(draft)
+
+    XCTAssertEqual(applied.position, .upperRight)
+    XCTAssertEqual(appearance.preferences.position, .upperRight)
+    XCTAssertEqual(appearance.preferences.opacity, 0.42, accuracy: 0.0001)
+    XCTAssertEqual(appearance.preferences.fontSize, 180)
+    XCTAssertEqual(appearance.preferences.fontFamily, .helveticaNeue)
   }
 
   func testHoverFleeStateTogglesOnlyWhenCursorIsInsideCurrentWatermark() {

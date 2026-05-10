@@ -1,7 +1,9 @@
 // OverlayRenderer — transparent AppKit windows hosting a SwiftUI watermark.
 
 import AppKit
+import Combine
 import CoreGraphics
+import Persistence
 import SwiftUI
 
 /// Renderable overlay content for one display.
@@ -54,46 +56,194 @@ public enum OverlayTextSource: Sendable {
   public static var prototype: OverlayTextSource { .constant("PROTOTYPE") }
 }
 
-/// Supported screen positions for the watermark.
-public enum WatermarkPosition: Sendable {
-  case lowerRight, lowerLeft, upperRight, upperLeft, center
+/// Observable watermark appearance shared by the overlay and Preferences window.
+@MainActor
+public final class WatermarkAppearance: ObservableObject {
+  @Published public var preferences: WatermarkPreferences
 
-  /// Position used when the cursor enters this watermark position.
-  public var diagonalOpposite: WatermarkPosition {
+  public init(preferences: WatermarkPreferences = .defaults) {
+    self.preferences = preferences
+  }
+
+  public var color: CodableColor {
+    get { preferences.color }
+    set { preferences = preferences.replacing(color: newValue.withOpaqueAlpha) }
+  }
+
+  public var opacity: Double {
+    get { preferences.opacity }
+    set { preferences = preferences.replacing(opacity: newValue) }
+  }
+
+  public var fontSize: CGFloat {
+    get { preferences.fontSize }
+    set { preferences = preferences.replacing(fontSize: newValue) }
+  }
+
+  public var fontFamily: WatermarkFontFamily {
+    get { preferences.fontFamily }
+    set { preferences = preferences.replacing(fontFamily: newValue) }
+  }
+
+  public var position: WatermarkPosition {
+    get { preferences.position }
+    set { preferences = preferences.replacing(position: newValue) }
+  }
+}
+
+/// Named color options that preserve the app's quiet signage language.
+public struct WatermarkSwatch: Identifiable, Equatable, Sendable {
+  public let id: String
+  public let name: String
+  public let color: CodableColor
+
+  public init(id: String, name: String, color: CodableColor) {
+    self.id = id
+    self.name = name
+    self.color = color
+  }
+
+  public static let curated: [WatermarkSwatch] = [
+    WatermarkSwatch(id: "warm-off-white", name: "Warm off-white", color: CodableColor(red: 0.957, green: 0.945, blue: 0.918, alpha: 1.0)),
+    WatermarkSwatch(id: "cool-gray", name: "Cool gray", color: CodableColor(red: 0.72, green: 0.76, blue: 0.78, alpha: 1.0)),
+    WatermarkSwatch(id: "soft-amber", name: "Soft amber", color: CodableColor(red: 0.92, green: 0.72, blue: 0.44, alpha: 1.0)),
+    WatermarkSwatch(id: "muted-teal", name: "Muted teal", color: CodableColor(red: 0.48, green: 0.72, blue: 0.70, alpha: 1.0)),
+    WatermarkSwatch(id: "dust-blue", name: "Dust blue", color: CodableColor(red: 0.55, green: 0.64, blue: 0.78, alpha: 1.0)),
+    WatermarkSwatch(id: "soft-lavender", name: "Soft lavender", color: CodableColor(red: 0.70, green: 0.62, blue: 0.82, alpha: 1.0)),
+  ]
+}
+
+/// Testable view-model surface for preference controls.
+@MainActor
+public final class WatermarkPreferencesViewModel: ObservableObject {
+  public let appearance: WatermarkAppearance
+
+  public init(appearance: WatermarkAppearance) {
+    self.appearance = appearance
+  }
+
+  public var swatches: [WatermarkSwatch] { WatermarkSwatch.curated }
+  public var cornerPositions: [WatermarkPosition] { WatermarkPosition.cornerCases }
+  public var opacityLabel: String { "\(Int((appearance.opacity * 100).rounded()))%" }
+  public var fontSizeLabel: String { "\(Int(appearance.fontSize.rounded())) pt" }
+
+  @discardableResult
+  public func apply(_ preferences: WatermarkPreferences) -> WatermarkPreferences {
+    let normalized = normalized(preferences)
+    appearance.preferences = normalized
+    return normalized
+  }
+
+  public func chooseSwatch(_ swatch: WatermarkSwatch) {
+    apply(appearance.preferences.replacing(color: swatch.color.withOpaqueAlpha))
+  }
+
+  public func setColor(_ color: CodableColor) {
+    apply(appearance.preferences.replacing(color: color.withOpaqueAlpha))
+  }
+
+  public func setOpacity(_ opacity: Double) {
+    apply(appearance.preferences.replacing(opacity: opacity))
+  }
+
+  public func setFontSize(_ fontSize: CGFloat) {
+    apply(appearance.preferences.replacing(fontSize: fontSize))
+  }
+
+  public func setFontFamily(_ fontFamily: WatermarkFontFamily) {
+    apply(appearance.preferences.replacing(fontFamily: fontFamily))
+  }
+
+  public func setPosition(_ position: WatermarkPosition) {
+    guard WatermarkPosition.cornerCases.contains(position) else { return }
+    apply(appearance.preferences.replacing(position: position))
+  }
+
+  private func normalized(_ preferences: WatermarkPreferences) -> WatermarkPreferences {
+    let position = WatermarkPosition.cornerCases.contains(preferences.position)
+      ? preferences.position
+      : appearance.position
+    return WatermarkPreferences(
+      color: preferences.color.withOpaqueAlpha,
+      opacity: min(1.0, max(0.01, preferences.opacity)),
+      fontSize: min(400, max(80, preferences.fontSize)),
+      fontFamily: preferences.fontFamily,
+      position: position
+    )
+  }
+}
+
+public extension WatermarkPreferences {
+  func replacing(
+    color: CodableColor? = nil,
+    opacity: Double? = nil,
+    fontSize: CGFloat? = nil,
+    fontFamily: WatermarkFontFamily? = nil,
+    position: WatermarkPosition? = nil
+  ) -> WatermarkPreferences {
+    WatermarkPreferences(
+      color: color ?? self.color,
+      opacity: opacity ?? self.opacity,
+      fontSize: fontSize ?? self.fontSize,
+      fontFamily: fontFamily ?? self.fontFamily,
+      position: position ?? self.position
+    )
+  }
+}
+
+public extension CodableColor {
+  var swiftUIColor: Color {
+    Color(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
+  }
+
+  var nsColor: NSColor {
+    NSColor(srgbRed: CGFloat(red), green: CGFloat(green), blue: CGFloat(blue), alpha: 1.0)
+  }
+
+  init(nsColor: NSColor) {
+    let color = nsColor.usingColorSpace(.sRGB) ?? nsColor
+    self.init(red: Double(color.redComponent), green: Double(color.greenComponent), blue: Double(color.blueComponent), alpha: Double(color.alphaComponent))
+  }
+
+  init(swiftUIColor: Color) {
+    self.init(nsColor: NSColor(swiftUIColor))
+  }
+}
+
+public extension WatermarkPosition {
+  var displayName: String {
     switch self {
-    case .lowerRight:
-      return .upperLeft
-    case .lowerLeft:
-      return .upperRight
-    case .upperRight:
-      return .lowerLeft
-    case .upperLeft:
-      return .lowerRight
-    case .center:
-      return .center
+    case .lowerRight: return "Lower Right"
+    case .lowerLeft: return "Lower Left"
+    case .upperRight: return "Upper Right"
+    case .upperLeft: return "Upper Left"
+    case .center: return "Center"
+    }
+  }
+
+  var diagonalOpposite: WatermarkPosition {
+    switch self {
+    case .lowerRight: return .upperLeft
+    case .lowerLeft: return .upperRight
+    case .upperRight: return .lowerLeft
+    case .upperLeft: return .lowerRight
+    case .center: return .center
     }
   }
 
   fileprivate var alignment: Alignment {
     switch self {
-    case .lowerRight:
-      return .bottomTrailing
-    case .lowerLeft:
-      return .bottomLeading
-    case .upperRight:
-      return .topTrailing
-    case .upperLeft:
-      return .topLeading
-    case .center:
-      return .center
+    case .lowerRight: return .bottomTrailing
+    case .lowerLeft: return .bottomLeading
+    case .upperRight: return .topTrailing
+    case .upperLeft: return .topLeading
+    case .center: return .center
     }
   }
 
   fileprivate var padding: EdgeInsets {
     switch self {
-    case .lowerRight, .lowerLeft:
-      return EdgeInsets(top: 60, leading: 80, bottom: 60, trailing: 80)
-    case .upperRight, .upperLeft:
+    case .lowerRight, .lowerLeft, .upperRight, .upperLeft:
       return EdgeInsets(top: 60, leading: 80, bottom: 60, trailing: 80)
     case .center:
       return EdgeInsets()
@@ -105,6 +255,9 @@ public enum WatermarkPosition: Sendable {
 public struct WatermarkView: View {
   private let text: String
   private let opacity: CGFloat
+  private let color: CodableColor
+  private let fontSize: CGFloat
+  private let fontFamily: WatermarkFontFamily
   private let position: WatermarkPosition
   private let isEditing: Bool
   private let onTap: (() -> Void)?
@@ -117,7 +270,10 @@ public struct WatermarkView: View {
   /// Creates a watermark view.
   public init(
     text: String,
+    color: CodableColor = .defaultWatermark,
     opacity: CGFloat = 0.10,
+    fontSize: CGFloat = 240,
+    fontFamily: WatermarkFontFamily = .sfPro,
     position: WatermarkPosition = .lowerRight,
     isEditing: Bool = false,
     onTap: (() -> Void)? = nil,
@@ -126,6 +282,9 @@ public struct WatermarkView: View {
   ) {
     self.text = text
     self.opacity = opacity
+    self.color = color
+    self.fontSize = fontSize
+    self.fontFamily = fontFamily
     self.position = position
     self.isEditing = isEditing
     self.onTap = onTap
@@ -154,9 +313,9 @@ public struct WatermarkView: View {
     if isEditing {
       TextField("", text: $draft)
         .textFieldStyle(.plain)
-        .font(.system(size: 240, weight: .ultraLight, design: .default))
+        .font(Font(fontFamily.nsFont(size: fontSize, weight: .ultraLight)))
         .tracking(12)
-        .foregroundStyle(Color.white.opacity(0.35))
+        .foregroundStyle(Color(.sRGB, red: color.red, green: color.green, blue: color.blue, opacity: max(0.35, opacity)))
         .lineLimit(1)
         .minimumScaleFactor(0.1)
         .focused($fieldIsFocused)
@@ -169,9 +328,9 @@ public struct WatermarkView: View {
         }
     } else {
       Text(text)
-        .font(.system(size: 240, weight: .ultraLight, design: .default))
+        .font(Font(fontFamily.nsFont(size: fontSize, weight: .ultraLight)))
         .tracking(12)
-        .foregroundStyle(Color.white.opacity(opacity))
+        .foregroundStyle(color.swiftUIColor.opacity(opacity))
         .lineLimit(1)
         .minimumScaleFactor(0.1)
         .contentShape(Rectangle())
@@ -260,7 +419,8 @@ public final class OverlayController: OverlayRendering {
 
   private var managedWindows: [ManagedWindow] = []
   internal private(set) var currentText: String = "PROTOTYPE"
-  private let watermarkPosition: WatermarkPosition
+  private let appearance: WatermarkAppearance
+  private var appearanceCancellable: AnyCancellable?
   private var textTask: Task<Void, Never>?
   private var mouseMonitor: Any?
   private var lastMouseSampleTime: TimeInterval = 0
@@ -273,9 +433,13 @@ public final class OverlayController: OverlayRendering {
 
   /// Creates an overlay controller with injectable text and position defaults.
   public init(
-    textSource: OverlayTextSource = .prototype, watermarkPosition: WatermarkPosition = .lowerRight
+    textSource: OverlayTextSource = .prototype,
+    watermarkPosition: WatermarkPosition = .lowerRight,
+    watermarkAppearance: WatermarkAppearance? = nil
   ) {
-    self.watermarkPosition = watermarkPosition
+    self.appearance = watermarkAppearance ?? WatermarkAppearance(
+      preferences: WatermarkPreferences(color: .defaultWatermark, opacity: 0.10, fontSize: 240, position: watermarkPosition)
+    )
     switch textSource {
     case .constant(let text):
       currentText = text
@@ -284,6 +448,11 @@ public final class OverlayController: OverlayRendering {
         for await text in stream {
           self?.updateText(text)
         }
+      }
+    }
+    appearanceCancellable = appearance.objectWillChange.sink { [weak self] _ in
+      DispatchQueue.main.async {
+        self?.appearanceDidChange()
       }
     }
   }
@@ -358,6 +527,10 @@ public final class OverlayController: OverlayRendering {
       managed.window.makeKeyAndOrderFront(nil)
       managed.hostingView.rootView = WatermarkView(
         text: text,
+        color: appearance.color,
+        opacity: CGFloat(appearance.opacity),
+        fontSize: appearance.fontSize,
+        fontFamily: appearance.fontFamily,
         position: managed.hoverState.currentPosition,
         isEditing: true,
         onCommit: { [weak self] value in self?.completeRename(with: value) },
@@ -399,6 +572,20 @@ public final class OverlayController: OverlayRendering {
     lastInsideStates.removeAll()
   }
 
+  private func appearanceDidChange() {
+    guard !managedWindows.isEmpty else { return }
+    var positionChanged = false
+    for index in managedWindows.indices where managedWindows[index].hoverState.configuredPosition != appearance.position {
+      managedWindows[index].hoverState = WatermarkHoverFleeState(configuredPosition: appearance.position)
+      positionChanged = true
+    }
+    if positionChanged {
+      lastInsideStates.removeAll()
+    }
+    guard !isRenaming else { return }
+    renderDisplayMode()
+  }
+
   @objc private func screenParametersDidChange() {
     rebuildWindows()
   }
@@ -407,6 +594,10 @@ public final class OverlayController: OverlayRendering {
     managedWindows.forEach { managed in
       managed.hostingView.rootView = WatermarkView(
         text: currentText,
+        color: appearance.color,
+        opacity: CGFloat(appearance.opacity),
+        fontSize: appearance.fontSize,
+        fontFamily: appearance.fontFamily,
         position: managed.hoverState.currentPosition,
         onTap: { [weak self] in
           guard let self else { return }
@@ -428,10 +619,14 @@ public final class OverlayController: OverlayRendering {
     hide()
     managedWindows = NSScreen.screens.map { screen in
       let window = OverlayWindow(screen: screen)
-      let hoverState = WatermarkHoverFleeState(configuredPosition: watermarkPosition)
+      let hoverState = WatermarkHoverFleeState(configuredPosition: appearance.position)
       let hostingView = NSHostingView(
         rootView: WatermarkView(
           text: currentText,
+          color: appearance.color,
+          opacity: CGFloat(appearance.opacity),
+          fontSize: appearance.fontSize,
+          fontFamily: appearance.fontFamily,
           position: hoverState.currentPosition,
           onTap: { [weak self] in
             guard let self else { return }
@@ -492,6 +687,10 @@ public final class OverlayController: OverlayRendering {
       guard nextPosition != previousPosition else { continue }
       managedWindows[index].hostingView.rootView = WatermarkView(
         text: currentText,
+        color: appearance.color,
+        opacity: CGFloat(appearance.opacity),
+        fontSize: appearance.fontSize,
+        fontFamily: appearance.fontFamily,
         position: nextPosition,
         onTap: { [weak self] in
           self?.onInteraction?(.optionClick(screenID: screenID))
@@ -504,14 +703,22 @@ public final class OverlayController: OverlayRendering {
     WatermarkGeometry.rect(
       for: currentText,
       position: managed.hoverState.currentPosition,
+      fontSize: appearance.fontSize,
+      fontFamily: appearance.fontFamily,
       in: managed.window.frame
     )
   }
 }
 
 private enum WatermarkGeometry {
-  static func rect(for text: String, position: WatermarkPosition, in container: NSRect) -> NSRect {
-    let size = measuredTextSize(for: text)
+  static func rect(
+    for text: String,
+    position: WatermarkPosition,
+    fontSize: CGFloat = 240,
+    fontFamily: WatermarkFontFamily = .sfPro,
+    in container: NSRect
+  ) -> NSRect {
+    let size = measuredTextSize(for: text, fontSize: fontSize, fontFamily: fontFamily)
     let padding = position.nsEdgeInsets
 
     let origin: NSPoint
@@ -535,8 +742,8 @@ private enum WatermarkGeometry {
     return NSRect(origin: origin, size: size).insetBy(dx: -12, dy: -12)
   }
 
-  private static func measuredTextSize(for text: String) -> NSSize {
-    let font = NSFont.systemFont(ofSize: 240, weight: .ultraLight)
+  private static func measuredTextSize(for text: String, fontSize: CGFloat, fontFamily: WatermarkFontFamily) -> NSSize {
+    let font = fontFamily.nsFont(size: fontSize, weight: .ultraLight)
     let rawSize = (text as NSString).size(withAttributes: [.font: font])
     let tracking = CGFloat(max(text.count - 1, 0)) * 12
     return NSSize(
