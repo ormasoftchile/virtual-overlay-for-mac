@@ -179,3 +179,42 @@ Scribe processed Don-7 successful bug fix (Space identity collision):
 - Cross-references: All consistent (timestamps, agent names, decision numbers).
 - Team roster: Susan added as 5th member (Designer / Visual role).
 - Git state: All files staged for commit.
+
+---
+
+## 2026-05-10T19:06:07.182-04:00 — Preferences Window & Live-Preview Pattern (Don-12)
+
+**Scope:** Documentation consolidation for Don-12 (preferences window completion).
+
+**Tasks executed:**
+1. ✅ PRE-CHECK: All required files verified present. Don-12 completion verified in manifest; don-watermark-preferences.md decision verified in inbox.
+2. ✅ DECISIONS ARCHIVE [HARD GATE]: decisions.md backed up; inbox decision processed (2026-05-10T23.13 archive).
+3. ✅ DECISION INBOX: Merged don-watermark-preferences.md into decisions.md as new Decision 6 "Watermark Preferences v1" with Approved status. Documented preferences schema, live-preview pattern, and design-language integration.
+4. ✅ ORCHESTRATION LOG: Created entry 2026-05-10T19-06-07Z-don-12.md documenting preferences window, observable binding, color swatches, 500ms debounce pattern, and 30 tests passing.
+5. ✅ SESSION LOG: Created .squad/log/2026-05-10-preferences-window.md with preferences window scope, implementation details, and future extension points.
+6. ✅ CROSS-AGENT: Updated Susan's history.md with note on preferences color swatches (6 curated colors derived from her app icon palette—warm off-white / near-black—ensuring visual cohesion across the product). Added "Visual Language as Active Reference" section to Susan's history documenting the design palette as an ongoing anchor for future decisions.
+7. ✅ HISTORY SUMMARIZATION [HARD GATE]: Recording this session now.
+8. ⏭️ GIT COMMIT: Next step.
+9. ⏭️ HEALTH REPORT: Final step.
+
+**Decisions processed:**
+- **don-watermark-preferences.md** (2026-05-10T19:06:07.182-04:00): Approved. Preferences schema stores color, fontSize, position to `~/Library/Application Support/VirtualOverlay/preferences.json`. Live-preview pattern uses shared `WatermarkAppearance` observable between PreferencesView and OverlayController. No Apply button; all changes publish immediately; disk writes debounce at 500ms after last UI change, flushing on app termination.
+
+**Key design decision ratified:**
+- 6 curated color swatches match Susan's app icon design language (warm off-white `#F4F1EA` + near-black `#111416` + complementary accents), ensuring visual cohesion across the product and establishing the app icon palette as an active reference for future visual decisions.
+
+**Files created/modified:**
+- `.squad/decisions.md`: Added Decision 6 "Watermark Preferences v1" with full schema, UI components, and design-language integration.
+- `.squad/decisions/inbox/don-watermark-preferences.md`: Moved to `.squad/decisions/don-watermark-preferences.md` (archived from inbox).
+- `.squad/orchestration-log/2026-05-10T19-06-07Z-don-12.md`: Created.
+- `.squad/log/2026-05-10-preferences-window.md`: Created.
+- `.squad/agents/susan/history.md`: Appended note on preferences color swatches as design-language application; added "Visual Language as Active Reference" section establishing palette as ongoing anchor.
+- `.squad/decisions/decisions.md.archive-2026-05-10T23.13`: Archive backup.
+
+**Verification:**
+- Decision inbox: don-watermark-preferences.md merged and archived.
+- Orchestration log: Complete for Don-12.
+- Session log: Present and comprehensive.
+- Susan's history: Updated with design-language influence note and visual palette reference section.
+- Cross-references: All consistent (timestamps, agent names, decision numbers).
+- Git state: All scribe files staged for commit.
