@@ -30,7 +30,9 @@ final class OverlayRendererTests: XCTestCase {
     await Task.yield()
 
     continuation.yield("LAB")
-    await Task.yield()
+    for _ in 0..<10 where controller.currentText != "LAB" {
+      await Task.yield()
+    }
 
     XCTAssertEqual(controller.currentText, "LAB")
     continuation.finish()

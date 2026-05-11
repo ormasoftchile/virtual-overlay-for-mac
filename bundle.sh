@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${REPO_ROOT}"
+
 APP_NAME="Virtual Overlay"
 PRODUCT_NAME="VirtualOverlay"
 BUNDLE_IDENTIFIER="com.ormasoftchile.virtualoverlay"
-VERSION="0.1.0"
-BUILD_NUMBER="1"
-MINIMUM_SYSTEM_VERSION="13.0"
+VERSION="${1:-0.1.0}"
+BUILD_NUMBER="${VERSION}"
+MINIMUM_SYSTEM_VERSION="$(sed -nE 's/^[[:space:]]*\\.macOS\\(\\.v([0-9]+)\\).*/\\1.0/p' Package.swift | head -n 1)"
+MINIMUM_SYSTEM_VERSION="${MINIMUM_SYSTEM_VERSION:-13.0}"
 AUTHOR="Ormasoft Chile"
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
@@ -15,6 +19,11 @@ MACOS_DIR="${CONTENTS_DIR}/MacOS"
 RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 EXECUTABLE_PATH="${MACOS_DIR}/${APP_NAME}"
 BUILT_BINARY=".build/release/${PRODUCT_NAME}"
+
+if [[ "${VERSION}" == v* ]]; then
+  echo "error: version must not start with 'v' (example: ./bundle.sh 0.1.0)." >&2
+  exit 1
+fi
 
 if ! command -v swift >/dev/null 2>&1; then
   echo "error: swift is required to build ${APP_NAME}. Install Xcode or the Xcode Command Line Tools." >&2
