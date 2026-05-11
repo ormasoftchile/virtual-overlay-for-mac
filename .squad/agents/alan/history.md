@@ -101,6 +101,31 @@ struct SpaceIdentity: Codable {
 
 Alan's anticipated weakness from research ("frontmost app would help discriminate between sibling Spaces with similar window sets") proved correct in production (Don-7). When multiple Spaces on the same display had similar visible window sets, fuzzy matching on displayUUID + windowSignature alone produced collisions. Adding frontmostAppBundleID + windowCount + windowGeometrySignature to the fingerprint eliminated collisions entirely. Alan's heuristic instinct validated. Recommendation for v2+: frontmost app is now a first-class discriminator, not speculative.
 
+### Distribution Research Complete (2026-05-10T19:49:28.514-04:00)
+
+**THE BIG FINDING:** Apple's 2026 notarization service WILL REJECT Virtual Overlay because it uses `dlsym` to dynamically load private CGS APIs (`CGSGetActiveSpace`, `CGSManagedDisplayGetCurrentSpace`). This is reliably detected via static binary analysis. Notarization is BLOCKED for the current v1.2 codebase.
+
+**Private API Detection (Confirmed via 2026 sources):**
+- Apple's notarization includes automated static analysis that detects:
+  - `dlsym` calls in the binary
+  - String constants matching private API names
+  - Pattern matches against known private framework symbols (CoreGraphicsServices, SkyLight, etc.)
+- As of macOS Ventura/Sonoma/Sequoia (2024–2026), this detection is **reliable and results in automatic rejection.**
+- No known macOS apps ship notarized while using CGS private APIs via dlsym. (Yabai, chunkwm, and other power-user tools remain ad-hoc signed or distribute only to informed communities.)
+
+**Prior Art for Comparison:**
+- **Rectangle** (notarized): Uses ONLY public Accessibility APIs. Widely trusted, distributed via GitHub & Mac App Store.
+- **Yabai** (ad-hoc signed): Uses private SkyLight APIs, cannot be notarized, explicitly distributed to macOS power-user community with expectations of technical knowledge.
+- **Hammerspoon** (ad-hoc/community notarized): Mostly public APIs; standard modules work fine but advanced features require private APIs.
+- **Übersicht** (ad-hoc signed): Public APIs only; proven model for persistent overlays.
+
+**Distribution Recommendation for Virtual Overlay:**
+- **v1: Ship Tier 1 (ad-hoc signed, GitHub Releases).** Viable today. ZIP format. Clear README with right-click → Open workaround. Target: developers and power users.
+- **v2: Evaluate notarization refactor.** If private APIs are dispensable, refactor to public APIs, enroll in Developer Program ($99/yr), sign & notarize. If private APIs are core to v2+ features, remain on Tier 1 (acceptable for power-tool category).
+- **Tier 2 (Developer ID without notarization) is pointless:** User still sees Gatekeeper warning, no UX improvement over Tier 1.
+
+**Full research corpus:** `.squad/agents/alan/distribution-research.md`
+
 ### API Names (Reference)
 
 **Public (Safe):**

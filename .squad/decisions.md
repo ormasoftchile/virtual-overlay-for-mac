@@ -536,3 +536,113 @@ No Xcode project, notarization, DMG, Sparkle auto-update, or certificate setup i
 
 ---
 
+
+## 12. Decision: Distribution Model — Tier 1 (ad-hoc signed, GitHub Releases)
+**Author:** Alan (Researcher)  
+**Date:** 2026-05-10T19:49:28.514-04:00  
+**Status:** Proposed (awaiting Cristian ratification)  
+**Related research:** `.squad/agents/alan/distribution-research.md`
+
+### Decision
+
+**Distribute Virtual Overlay v1.0 via Tier 1 (ad-hoc signed, GitHub Releases).**
+
+### Rationale
+
+#### 1. Notarization is Blocked
+
+Your current codebase uses `dlsym` to dynamically load private Core Graphics Services APIs (`CGSGetActiveSpace`, `CGSManagedDisplayGetCurrentSpace`). Apple's 2026 notarization service reliably detects this via static binary analysis and rejects the app. **Tier 3 (Developer ID + notarization) is not viable without major refactoring.**
+
+#### 2. Tier 1 is Proven & Viable Today
+
+- **Proven precedent:** Yabai, Hammerspoon, Übersicht, and dozens of macOS utility apps distribute this way to informed audiences.
+- **Target audience fit:** Developers and power users discovering Space-identity tools understand Gatekeeper warnings and the right-click → Open workaround.
+- **Zero blockers:** Your code is ready. No changes needed.
+- **Zero cost:** No Apple Developer Program enrollment required.
+
+#### 3. Tier 2 (Developer ID without Notarization) is Pointless
+
+Developer ID alone does not reduce Gatekeeper friction. Users still see the "unidentified developer" warning and must right-click → Open. This approach has no advantage over Tier 1 but adds a $99/year cost. Skip it.
+
+#### 4. User Friction is Acceptable
+
+First-time users will see:
+```
+"Virtual Overlay" can't be opened because it is from an unidentified developer.
+```
+Workaround: right-click → Open. One-time per machine. **This is the standard UX for power-user macOS utilities.** Include clear instructions in README; users will expect this.
+
+#### 5. Future-Proof Path Exists
+
+If you decide to support Tier 3 in v2, you'd refactor to drop private API usage and sign/notarize. Tier 1 users continue to work forever. No blocking dependencies.
+
+### Distribution Model
+
+- **Channel:** GitHub Releases.
+- **Format:** ZIP archive (simplest, works with auto-update frameworks like Sparkle).
+- **Signature:** Ad-hoc (current; created by `bundle.sh`).
+- **Instructions:** Include step-by-step README with Gatekeeper workaround.
+- **Audience:** Developers, power users, technical macOS enthusiasts.
+
+### Example Release Notes
+
+```markdown
+## Virtual Overlay v1.0.0
+
+### Installation
+
+1. Download `VirtualOverlay.app.zip`.
+2. Extract (usually automatic).
+3. Drag `VirtualOverlay.app` to `/Applications`.
+4. **Right-click the app → Open** (macOS will show a security warning; this is normal).
+5. Click **Open** to allow launch.
+
+### Why the warning?
+
+Virtual Overlay uses private macOS APIs that Apple does not permit in notarized apps.
+For technical details, see [distribution docs].
+
+### Permissions
+
+None required. The app does not need Accessibility or Screen Recording permissions.
+
+### Uninstall
+
+Drag the app to Trash.
+```
+
+### Deferred: Tier 3 (Notarization Path for v2+)
+
+If user feedback shows strong demand for frictionless distribution, evaluate v2 refactoring:
+1. Assess whether Space identity can work without `CGSGetActiveSpace` (lower confidence, heuristic rework needed).
+2. If viable, remove all private API usage.
+3. Enroll in Apple Developer Program ($99/year).
+4. Create Developer ID cert, sign, and notarize.
+5. Distribute via GitHub Releases (notarized, zero Gatekeeper friction).
+6. Estimated effort: 3–5 days of engineering + ongoing $99/year cost.
+
+**Decision point:** Gather feedback from v1.0 rollout. If Space identity is reliable with public APIs alone, Tier 3 becomes attractive. If not, remain on Tier 1 (acceptable for power-tool category).
+
+---
+
+## 13. Decision: Release Pipeline — `ship.sh` is Canonical Local Path
+**Date:** 2026-05-10T19:54:52.490-04:00  
+**From:** Don  
+**Status:** Proposed
+
+### Decision
+
+`ship.sh` is the canonical local release path for Virtual Overlay v1.
+
+### Contract
+
+- Build releases locally with `./ship.sh VERSION`; the script runs tests, builds `dist/Virtual Overlay.app`, verifies the ad-hoc signature, clears extended attributes, creates the ZIP, writes the SHA-256 sidecar, and generates editable release notes.
+- Use `ditto -c -k --keepParent` for release ZIPs. `.app` bundles are directory trees with macOS metadata, symlinks, and resource-fork edge cases; plain `zip` is not the tool for shipping them.
+- Do not add CI signing for v1. There is no Apple Developer Program identity in scope, and ad-hoc signing on a hosted runner adds complexity without solving notarization.
+
+### Rationale
+
+Virtual Overlay uses private CoreGraphics / SkyLight Space APIs, so notarization is not available. The honest Tier 1 path is ad-hoc signed local builds distributed as ZIP assets on GitHub Releases for power users who can right-click → Open on first launch.
+
+---
+
