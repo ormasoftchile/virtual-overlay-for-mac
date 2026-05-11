@@ -38,6 +38,20 @@ final class OverlayRendererTests: XCTestCase {
     continuation.finish()
   }
 
+  @MainActor
+  func testOverlayContentTracksIndependentTextPerScreen() {
+    let controller = OverlayController()
+
+    controller.update(content: [
+      OverlayContent(text: "MAIN-1", screenID: 111),
+      OverlayContent(text: "TOP-ONLY", screenID: 222),
+    ])
+
+    XCTAssertEqual(controller.textsByScreenID[111], "MAIN-1")
+    XCTAssertEqual(controller.textsByScreenID[222], "TOP-ONLY")
+    XCTAssertEqual(controller.currentText, "MAIN-1")
+  }
+
   func testDiagonalOppositePositions() {
     XCTAssertEqual(WatermarkPosition.lowerRight.diagonalOpposite, .upperLeft)
     XCTAssertEqual(WatermarkPosition.lowerLeft.diagonalOpposite, .upperRight)

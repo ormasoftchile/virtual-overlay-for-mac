@@ -2,6 +2,7 @@
 
 import AppKit
 import Combine
+import CoreGraphics
 import Interaction
 import OverlayRenderer
 import Persistence
@@ -24,6 +25,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var preferencesCancellable: AnyCancellable?
     private var preferencesSaveTask: Task<Void, Never>?
     private var currentIdentity: SpaceIdentity?
+    private var currentIdentitiesByDisplay: [CGDirectDisplayID: SpaceIdentity] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureMainMenu()
@@ -78,8 +80,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         renameController = OptionClickRenameController(
             overlayController: overlayController,
             nameStore: nameStore,
-            currentIdentity: { [weak self] in self?.spaceFingerprinter.currentIdentity() },
-            refreshDisplayName: { [weak self] in self?.refreshDisplayNameFromFreshIdentity() }
+            currentIdentityForScreen: { [weak self] screenID in self?.freshIdentity(for: screenID) },
+            refreshDisplayName: { [weak self] in self?.refreshDisplayNameFromFreshSnapshots() }
         )
     }
 
@@ -134,37 +136,43 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
             apply(snapshots: try await spaceDetector.detect())
         } catch {
             currentIdentity = nil
+            currentIdentitiesByDisplay.removeAll()
             overlayController.updateText("UNNAMED")
         }
     }
 
     private func apply(snapshots: [SpaceSnapshot]) {
-        guard let identity = snapshots.first?.identity else {
+        guard !snapshots.isEmpty else {
             currentIdentity = nil
+            currentIdentitiesByDisplay.removeAll()
             overlayController.updateText("UNNAMED")
             return
         }
-        currentIdentity = identity
-        refreshDisplayNameFromCurrentIdentity()
-    }
 
-    private func refreshDisplayNameFromCurrentIdentity() {
-        displayName(for: currentIdentity)
-    }
-
-    private func refreshDisplayNameFromFreshIdentity() {
-        currentIdentity = spaceFingerprinter.currentIdentity()
-        displayName(for: currentIdentity)
-    }
-
-    private func displayName(for identity: SpaceIdentity?) {
-        guard let identity else {
-            overlayController.updateText("UNNAMED")
-            return
+        currentIdentity = snapshots.first?.identity
+        currentIdentitiesByDisplay = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.displayID, $0.identity) })
+        let content = snapshots.map { snapshot in
+            OverlayContent(text: displayName(for: snapshot.identity), screenID: snapshot.displayID)
         }
+        overlayController.update(content: content)
+    }
+
+    private func refreshDisplayNameFromFreshSnapshots() {
+        apply(snapshots: spaceFingerprinter.currentSnapshots())
+    }
+
+    private func freshIdentity(for screenID: CGDirectDisplayID?) -> SpaceIdentity? {
+        let snapshots = spaceFingerprinter.currentSnapshots()
+        currentIdentity = snapshots.first?.identity
+        currentIdentitiesByDisplay = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.displayID, $0.identity) })
+        guard let screenID else { return currentIdentity }
+        return currentIdentitiesByDisplay[screenID]
+    }
+
+    private func displayName(for identity: SpaceIdentity?) -> String {
+        guard let identity else { return "UNNAMED" }
         let matchedIdentity = nameStore.match(currentFingerprint: identity)
-        let text = matchedIdentity.flatMap { nameStore.name(for: $0) } ?? "UNNAMED"
-        overlayController.updateText(text)
+        return matchedIdentity.flatMap { nameStore.name(for: $0) } ?? "UNNAMED"
     }
 }
 

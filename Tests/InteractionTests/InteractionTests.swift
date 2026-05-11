@@ -59,6 +59,33 @@ final class InteractionTests: XCTestCase {
         XCTAssertEqual(store.name(for: currentAtSubmit), "second")
     }
 
+    @MainActor
+    func testRenameCommitUsesClickedScreenIdentity() {
+        let fileURL = uniqueStoreURL()
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let mainIdentity = identity(displayUUID: "main-display", cgsSpaceID: 100)
+        let topIdentity = identity(displayUUID: "top-display", cgsSpaceID: 100)
+        let store = JSONFileSpaceNameStore(fileURL: fileURL)
+        let controller = OptionClickRenameController(
+            overlayController: OverlayController(),
+            nameStore: store,
+            currentIdentityForScreen: { screenID in
+                switch screenID {
+                case 222: return topIdentity
+                default: return mainIdentity
+                }
+            },
+            refreshDisplayName: {}
+        )
+
+        controller.beginRenameForTesting(currentName: "UNNAMED", screenID: 222)
+        controller.commitRename("top")
+
+        XCTAssertNil(store.allKnown()[mainIdentity])
+        XCTAssertEqual(store.allKnown()[topIdentity], "top")
+    }
+
     private func uniqueStoreURL() -> URL {
         URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent(".build", isDirectory: true)
@@ -67,9 +94,9 @@ final class InteractionTests: XCTestCase {
             .appendingPathComponent("spaces.json")
     }
 
-    private func identity(cgsSpaceID: UInt64) -> SpaceIdentity {
+    private func identity(displayUUID: String = "display-a", cgsSpaceID: UInt64) -> SpaceIdentity {
         SpaceIdentity(
-            displayUUID: "display-a",
+            displayUUID: displayUUID,
             windowSignature: WindowSignature(entries: ["Safari:Docs"]),
             ordinal: 2,
             firstSeen: Date(timeIntervalSince1970: 0),

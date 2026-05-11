@@ -411,6 +411,7 @@ public final class OverlayController: OverlayRendering {
     let window: OverlayWindow
     let hostingView: NSHostingView<WatermarkView>
     let screenID: CGDirectDisplayID
+    var text: String
     var hoverState: WatermarkHoverFleeState
   }
 
@@ -419,6 +420,7 @@ public final class OverlayController: OverlayRendering {
 
   private var managedWindows: [ManagedWindow] = []
   internal private(set) var currentText: String = "PROTOTYPE"
+  internal private(set) var textsByScreenID: [CGDirectDisplayID: String] = [:]
   private let appearance: WatermarkAppearance
   private var appearanceCancellable: AnyCancellable?
   private var textTask: Task<Void, Never>?
@@ -495,8 +497,13 @@ public final class OverlayController: OverlayRendering {
 
   /// Replaces the watermark text on every managed screen.
   public func updateText(_ text: String) {
-    guard currentText != text else { return }
+    let existingTexts = Dictionary(uniqueKeysWithValues: managedWindows.map { ($0.screenID, $0.text) })
+    guard currentText != text || existingTexts.values.contains(where: { $0 != text }) else { return }
     currentText = text
+    textsByScreenID = Dictionary(uniqueKeysWithValues: managedWindows.map { ($0.screenID, text) })
+    for index in managedWindows.indices {
+      managedWindows[index].text = text
+    }
     guard !isRenaming else { return }
     renderDisplayMode()
   }
@@ -555,11 +562,24 @@ public final class OverlayController: OverlayRendering {
 
   /// Shows or updates overlays.
   public func update(content: [OverlayContent]) {
-    guard let firstContent = content.first else {
+    guard !content.isEmpty else {
       hide()
       return
     }
-    updateText(firstContent.text)
+
+    let textByScreenID = Dictionary(uniqueKeysWithValues: content.map { ($0.screenID, $0.text) })
+    currentText = content.first?.text ?? currentText
+    textsByScreenID = textByScreenID
+
+    var changed = false
+    for index in managedWindows.indices {
+      guard let text = textByScreenID[managedWindows[index].screenID], managedWindows[index].text != text else { continue }
+      managedWindows[index].text = text
+      changed = true
+    }
+
+    guard changed, !isRenaming else { return }
+    renderDisplayMode()
   }
 
   /// Tears down all overlay windows.
@@ -593,7 +613,7 @@ public final class OverlayController: OverlayRendering {
   private func renderDisplayMode() {
     managedWindows.forEach { managed in
       managed.hostingView.rootView = WatermarkView(
-        text: currentText,
+        text: managed.text,
         color: appearance.color,
         opacity: CGFloat(appearance.opacity),
         fontSize: appearance.fontSize,
@@ -619,10 +639,12 @@ public final class OverlayController: OverlayRendering {
     hide()
     managedWindows = NSScreen.screens.map { screen in
       let window = OverlayWindow(screen: screen)
+      let screenID = displayID(for: screen)
+      let text = textsByScreenID[screenID] ?? currentText
       let hoverState = WatermarkHoverFleeState(configuredPosition: appearance.position)
       let hostingView = NSHostingView(
         rootView: WatermarkView(
-          text: currentText,
+          text: text,
           color: appearance.color,
           opacity: CGFloat(appearance.opacity),
           fontSize: appearance.fontSize,
@@ -630,7 +652,7 @@ public final class OverlayController: OverlayRendering {
           position: hoverState.currentPosition,
           onTap: { [weak self] in
             guard let self else { return }
-            self.onInteraction?(.optionClick(screenID: displayID(for: screen)))
+            self.onInteraction?(.optionClick(screenID: screenID))
           }
         ))
       hostingView.frame = NSRect(origin: .zero, size: screen.visibleFrame.size)
@@ -642,7 +664,8 @@ public final class OverlayController: OverlayRendering {
       return ManagedWindow(
         window: window,
         hostingView: hostingView,
-        screenID: displayID(for: screen),
+        screenID: screenID,
+        text: text,
         hoverState: hoverState
       )
     }
@@ -686,7 +709,7 @@ public final class OverlayController: OverlayRendering {
         isInsideCurrentWatermark: true)
       guard nextPosition != previousPosition else { continue }
       managedWindows[index].hostingView.rootView = WatermarkView(
-        text: currentText,
+        text: managedWindows[index].text,
         color: appearance.color,
         opacity: CGFloat(appearance.opacity),
         fontSize: appearance.fontSize,
@@ -701,7 +724,7 @@ public final class OverlayController: OverlayRendering {
 
   private func watermarkRect(for managed: ManagedWindow) -> NSRect {
     WatermarkGeometry.rect(
-      for: currentText,
+      for: managed.text,
       position: managed.hoverState.currentPosition,
       fontSize: appearance.fontSize,
       fontFamily: appearance.fontFamily,

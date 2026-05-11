@@ -75,11 +75,12 @@ public struct RenameStateMachine: Sendable {
 public final class OptionClickRenameController {
     private let overlayController: OverlayController
     private let nameStore: SpaceNameStore
-    private let currentIdentity: () -> SpaceIdentity?
+    private let currentIdentity: (CGDirectDisplayID?) -> SpaceIdentity?
     private let refreshDisplayName: () -> Void
     private var flagsMonitor: Any?
     private var localFlagsMonitor: Any?
     private var optionIsHeld = false
+    private var editingScreenID: CGDirectDisplayID?
     private var stateMachine = RenameStateMachine()
 
     public init(
@@ -90,7 +91,19 @@ public final class OptionClickRenameController {
     ) {
         self.overlayController = overlayController
         self.nameStore = nameStore
-        self.currentIdentity = currentIdentity
+        self.currentIdentity = { _ in currentIdentity() }
+        self.refreshDisplayName = refreshDisplayName
+    }
+
+    public init(
+        overlayController: OverlayController,
+        nameStore: SpaceNameStore,
+        currentIdentityForScreen: @escaping (CGDirectDisplayID?) -> SpaceIdentity?,
+        refreshDisplayName: @escaping () -> Void
+    ) {
+        self.overlayController = overlayController
+        self.nameStore = nameStore
+        self.currentIdentity = currentIdentityForScreen
         self.refreshDisplayName = refreshDisplayName
     }
 
@@ -104,8 +117,8 @@ public final class OptionClickRenameController {
         overlayController.onInteraction = { [weak self] event in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if case .optionClick = event, self.optionIsHeld {
-                    self.beginRenameProgrammatically()
+                if case .optionClick(let screenID) = event, self.optionIsHeld {
+                    self.beginRename(on: screenID)
                 }
             }
         }
@@ -136,7 +149,12 @@ public final class OptionClickRenameController {
     }
 
     public func beginRenameProgrammatically() {
-        guard !stateMachine.isEditing, let identity = currentIdentity() else { return }
+        beginRename(on: nil)
+    }
+
+    private func beginRename(on screenID: CGDirectDisplayID?) {
+        guard !stateMachine.isEditing, let identity = currentIdentity(screenID) else { return }
+        editingScreenID = screenID
         let currentName = nameStore.name(for: identity) ?? "UNNAMED"
         stateMachine.begin(currentName: currentName)
         overlayController.beginRename(
@@ -151,7 +169,8 @@ public final class OptionClickRenameController {
     }
 
     #if DEBUG
-    func beginRenameForTesting(currentName: String) {
+    func beginRenameForTesting(currentName: String, screenID: CGDirectDisplayID? = nil) {
+        editingScreenID = screenID
         stateMachine.begin(currentName: currentName)
     }
     #endif
@@ -159,19 +178,21 @@ public final class OptionClickRenameController {
     func commitRename(_ rawName: String) {
         // Invariant: capture the Space identity fresh at submit time, using the same
         // fingerprinter path as display refresh, so rename writes exactly what is current now.
-        guard let identity = currentIdentity() else {
+        guard let identity = currentIdentity(editingScreenID) else {
             cancelRename()
             return
         }
         stateMachine.updateDraft(rawName)
         let savedName = stateMachine.save().flatMap { $0.isEmpty ? nil : $0 } ?? "UNNAMED"
         nameStore.setName(savedName, for: identity)
+        editingScreenID = nil
         overlayController.endRename(keepMouseEventsEnabled: optionIsHeld)
         refreshDisplayName()
     }
 
     private func cancelRename() {
         stateMachine.cancel()
+        editingScreenID = nil
         overlayController.endRename(keepMouseEventsEnabled: optionIsHeld)
         refreshDisplayName()
     }
