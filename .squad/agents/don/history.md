@@ -34,3 +34,10 @@
 
 ## Prior Sessions
 See `history-archive.md` for M1 detailed progression (through 2026-05-10T19:32:38).
+
+## Learnings
+
+### Modern Gatekeeper quarantine behavior (2026-05-10T20:10:01.513-04:00)
+- On recent macOS releases (Sequoia, Tahoe, macOS 26), right-click → Open is no longer a reliable Gatekeeper bypass for ad-hoc signed apps downloaded from the internet; Finder/Safari quarantine blocks launch with the damaged-app modal and no Open option.
+- The working escape hatch is to remove `com.apple.quarantine` for the installed app: `xattr -dr com.apple.quarantine "/Applications/Virtual Overlay.app"`, then launch with `open "/Applications/Virtual Overlay.app"`.
+- Alan's earlier distribution research missed this modern Gatekeeper behavior; future distribution docs must treat `xattr -dr` as the canonical ad-hoc install step unless the app becomes notarizable.

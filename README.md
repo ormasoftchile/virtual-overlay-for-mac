@@ -11,9 +11,22 @@ Virtual Overlay is a persistent ambient watermark for macOS Spaces. It identifie
 
 ## Install
 
-1. Download `Virtual-Overlay-vX.Y.Z.zip` from the latest GitHub Release.
-2. Unzip it, then drag `Virtual Overlay.app` to `/Applications`.
-3. **First launch:** right-click `Virtual Overlay.app` → Open → Open. macOS shows an “unidentified developer” warning because the app uses private SkyLight APIs and cannot be notarized. This is expected. The right-click→Open dance bypasses Gatekeeper for trusted local apps. After the first launch, double-click works normally.
+1. Download `Virtual-Overlay-vX.Y.Z.zip` from the [latest release](https://github.com/ormasoftchile/virtual-overlay-for-mac/releases/latest).
+2. Unzip and drag `Virtual Overlay.app` to `/Applications`.
+3. Open Terminal and run:
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Virtual Overlay.app"
+   open "/Applications/Virtual Overlay.app"
+   ```
+4. After that, double-click launches normally.
+
+### Why the extra step?
+
+Virtual Overlay uses private CoreGraphics / SkyLight APIs (`CGSManagedDisplayGetCurrentSpace`) for accurate per-display Space detection. Apple's notarization service rejects apps that link these symbols, so the binary is ad-hoc signed instead of Developer-ID signed. macOS adds a `com.apple.quarantine` flag to anything downloaded from the internet; the `xattr -dr` command above removes that flag for this one app, so macOS will trust the local ad-hoc signature.
+
+This is the same constraint [Yabai](https://github.com/koekeishiya/yabai) works under — common practice for macOS tools that need private APIs.
+
+If you'd rather not run that command, build from source — see [Building](#building) below.
 
 ## Optional verification
 
@@ -31,9 +44,14 @@ Launch the app and the watermark appears on your Spaces. Cmd-, opens Preferences
 
 System Settings → General → Login Items → +, then select `/Applications/Virtual Overlay.app`.
 
-## Why it can't be notarized
+## Building
 
-Virtual Overlay uses private CoreGraphics / SkyLight APIs (`CGSManagedDisplayGetCurrentSpace`) to detect the active Space per display. Apple's notarization service rejects apps that link to private symbols; this is the same constraint Yabai works under. The app is open source — build from source if you don't trust the binary.
+```bash
+git clone https://github.com/ormasoftchile/virtual-overlay-for-mac.git
+cd virtual-overlay-for-mac
+swift build -c release
+./bundle.sh
+```
 
 ## Development
 
