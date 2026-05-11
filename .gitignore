@@ -19,3 +19,8 @@ Icon?
 
 # Local machine activation (squad-specific)
 .squad-workstream
+
+# Scribe transient artifacts
+.squad/HEALTH_REPORT-*.md
+.squad/HEALTH_REPORT-*.txt
+.squad/agents/*/history-summary.txt
